@@ -1,0 +1,8 @@
+build/
+.gradle/
+apk_*/
+*.apk
+*.dex
+*.class
+*.flat
+*.keystore

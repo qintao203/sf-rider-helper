@@ -1,0 +1,51 @@
+name: Build APK
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK components
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-31" "build-tools;34.0.0"
+
+      - name: Build APK
+        run: |
+          set -x
+          ANDROID_JAR="$ANDROID_HOME/platforms/android-31/android.jar"
+          mkdir -p build/flat build/gen build/classes build/dex build/apk
+          AAPT2="$ANDROID_HOME/build-tools/34.0.0/aapt2"
+          for f in app/src/main/res/*/*.xml; do
+            [ ! -f "$f" ] && continue
+            tag="$(basename $(dirname $f))_$(basename $f .xml)"
+            $AAPT2 compile -o "build/${tag}.flat" "$f"
+            unzip -o "build/${tag}.flat" -d build/flat/ 2>/dev/null || true
+          done
+          $AAPT2 link --manifest app/src/main/AndroidManifest.xml --java build/gen -I "$ANDROID_JAR" --auto-add-overlay $(ls build/flat/* | tr '\n' ' ') -o build/apk/resonly.apk
+          find app/src/main/java -name "*.java" > sources.txt
+          javac -d build/classes -cp "$ANDROID_JAR" -source 17 -target 17 @sources.txt build/gen/com/sf/riderhelper/R.java
+          $ANDROID_HOME/build-tools/34.0.0/d8 --lib "$ANDROID_JAR" --release --min-api 26 --output build/dex $(find build/classes -name "*.class") 2>&1
+          cp build/apk/resonly.apk build/apk/unsigned.apk
+          (cd build/dex && zip -q ../../build/apk/unsigned.apk classes.dex)
+          rm -f debug.keystore
+          keytool -genkey -v -keystore debug.keystore -alias debug -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=D,OU=D,O=D,L=D,S=D,C=US"
+          $ANDROID_HOME/build-tools/34.0.0/apksigner sign --ks debug.keystore --ks-pass pass:android --ks-key-alias debug --out build/apk/app-release.apk build/apk/unsigned.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-apk
+          path: build/apk/app-release.apk
