@@ -2,6 +2,7 @@ package com.sf.riderhelper;
 
 import android.animation.ValueAnimator;
 import android.app.Activity;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
