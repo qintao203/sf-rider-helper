@@ -60,6 +60,12 @@ public class ConfigManager {
     public boolean isKeepScreenOn() { return sp.getBoolean("keep_screen", true); }
     public void setKeepScreenOn(boolean v) { sp.edit().putBoolean("keep_screen", v).apply(); }
 
+    // --- 策略 ---
+    public String getStrategyMode() { return sp.getString("strategy_mode", "中优"); }
+    public void setStrategyMode(String v) { sp.edit().putString("strategy_mode", v).apply(); }
+    public int getMinScore() { return sp.getInt("min_score", 20); }
+    public void setMinScore(int v) { sp.edit().putInt("min_score", v).apply(); }
+
     // --- 统计 ---
     public int getStatGrabbed() { return sp.getInt("stat_grabbed", 0); }
     public void setStatGrabbed(int v) { sp.edit().putInt("stat_grabbed", v).apply(); }

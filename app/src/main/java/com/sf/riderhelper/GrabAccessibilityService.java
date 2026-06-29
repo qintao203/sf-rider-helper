@@ -1,16 +1,12 @@
 package com.sf.riderhelper;
 
 import android.accessibilityservice.AccessibilityService;
-import android.accessibilityservice.GestureDescription;
 import android.content.Intent;
-import android.graphics.Path;
-import android.graphics.Rect;
 import android.os.Handler;
-import android.os.SystemClock;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import java.util.List;
+
 import java.util.Random;
 
 public class GrabAccessibilityService extends AccessibilityService {
@@ -22,10 +18,17 @@ public class GrabAccessibilityService extends AccessibilityService {
     private ScreenInteractor interactor;
     private ConfigManager config;
     private NotificationHelper notifHelper;
+    private GrabFilterEngine filterEngine;
+    private GrabStrategy strategy;
     private Runnable grabLoop;
     private long lastGrabTime = 0;
     private int consecutiveFails = 0;
     private Random rng = new Random();
+
+    // 最近一次过滤结果（供UI读取）
+    private volatile GrabFilterEngine.FilterResult lastFilterResult;
+    private volatile GrabStrategy.Tier lastTier = GrabStrategy.Tier.REJECT;
+    private volatile OrderParser.ParsedOrder lastParsedOrder;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {}
@@ -40,7 +43,9 @@ public class GrabAccessibilityService extends AccessibilityService {
         interactor = new ScreenInteractor(this);
         config = ConfigManager.getInstance(this);
         notifHelper = new NotificationHelper(this);
-        Log.d(TAG, "GrabAccessibilityService created");
+        filterEngine = new GrabFilterEngine(config);
+        strategy = new GrabStrategy(config);
+        Log.d(TAG, "GrabAccessibilityService created with smart engine");
     }
 
     @Override
@@ -56,36 +61,41 @@ public class GrabAccessibilityService extends AccessibilityService {
     public boolean isPaused() { return paused; }
     public void setPaused(boolean p) { paused = p; }
 
+    public GrabFilterEngine.FilterResult getLastFilterResult() { return lastFilterResult; }
+    public GrabStrategy.Tier getLastTier() { return lastTier; }
+    public OrderParser.ParsedOrder getLastParsedOrder() { return lastParsedOrder; }
+    public GrabStrategy getStrategy() { return strategy; }
+
     public void startGrabLoop() {
         if (active) return;
         active = true;
         paused = false;
         consecutiveFails = 0;
-        Log.d(TAG, "Grab loop started");
+        Log.d(TAG, "Grab loop started with smart engine");
 
         grabLoop = new Runnable() {
             @Override
             public void run() {
-                if (!active || paused) {
-                    if (active) handler.postDelayed(this, 1000);
+                if (!active) return;
+                if (paused) {
+                    handler.postDelayed(this, 1000);
                     return;
                 }
                 try {
-                    executeGrabCycle();
+                    executeSmartGrabCycle();
                 } catch (Exception e) {
                     Log.e(TAG, "Grab cycle error", e);
                 }
-                int interval = Math.max(500, config.getScanInterval() + rng.nextInt(500));
+                int interval = Math.max(800, config.getScanInterval() + rng.nextInt(800));
                 handler.postDelayed(this, interval);
             }
         };
         handler.post(grabLoop);
 
-        // 发送通知
         try {
             startForegroundService(new Intent(this, GrabForegroundService.class));
         } catch (Exception e) {
-            Log.e(TAG, "Foreground service start failed", e);
+            Log.e(TAG, "Foreground start failed", e);
         }
     }
 
@@ -97,81 +107,99 @@ public class GrabAccessibilityService extends AccessibilityService {
         Log.d(TAG, "Grab loop stopped");
     }
 
-    private void executeGrabCycle() {
+    private void executeSmartGrabCycle() {
+        // 1. 获取页面文本
         String pageText = interactor.getPageText();
         if (pageText.isEmpty()) {
             consecutiveFails++;
             return;
         }
 
-        // 抢单逻辑：查找可点击的"抢单"按钮
-        AccessibilityNodeInfo grabBtn = interactor.findNodeContaining("抢单");
-        if (grabBtn == null) grabBtn = interactor.findNodeContaining("接单");
-        if (grabBtn == null) grabBtn = interactor.findNodeContaining("领取");
+        // 2. 智能解析订单
+        OrderParser.ParsedOrder order = OrderParser.parse(pageText);
+        lastParsedOrder = order;
 
-        if (grabBtn != null) {
-            // 提取订单信息
-            String orderInfo = extractOrderInfo(pageText);
-
-            // 检查是否符合过滤条件
-            if (shouldGrab(orderInfo)) {
-                // 随机延迟模拟人类操作
-                int delay = config.getGrabDelay() + rng.nextInt(200);
-                try { Thread.sleep(delay); } catch (InterruptedException ignored) {}
-
-                boolean ok = interactor.clickNode(grabBtn);
-                if (ok) {
-                    long now = System.currentTimeMillis();
-                    lastGrabTime = now;
-                    int grabbed = config.getStatGrabbed() + 1;
-                    config.setStatGrabbed(grabbed);
-                    consecutiveFails = 0;
-
-                    String msg = "已抢单: " + orderInfo;
-                    Log.d(TAG, msg);
-                    if (config.isVibrateOnGrab()) {
-                        try { vibrate(); } catch (Exception ignored) {}
-                    }
-                    if (config.isNotifyOnGrab()) {
-                        notifHelper.notifyGrab("抢单成功", orderInfo);
-                    }
-
-                    // 冷却
-                    int cool = config.getCooldownSeconds() * 1000;
-                    paused = true;
-                    handler.postDelayed(() -> { paused = false; }, cool);
-                } else {
-                    config.setStatFailed(config.getStatFailed() + 1);
-                    consecutiveFails++;
-                }
-            }
-        } else {
-            // 没有可抢的订单
+        if (!order.isValid()) {
             consecutiveFails++;
-            if (consecutiveFails > 20) {
-                // 连续失败20次，短暂停
-                paused = true;
-                handler.postDelayed(() -> { paused = false; }, 10000);
-            }
+            return;
         }
 
+        // 3. 多维过滤评分
+        GrabFilterEngine.FilterResult result = filterEngine.evaluate(order);
+        lastFilterResult = result;
+
+        // 4. 三级策略决策
+        GrabStrategy.Tier tier = strategy.decideTier(result.score);
+        lastTier = tier;
+
+        if (tier == GrabStrategy.Tier.REJECT) {
+            config.setStatSkipped(config.getStatSkipped() + 1);
+            consecutiveFails = 0; // 主动过滤不算失败
+            Log.d(TAG, "过滤跳过: " + result);
+            return;
+        }
+
+        // 5. 查找抢单按钮并点击
+        AccessibilityNodeInfo grabBtn = findGrabButton();
+        if (grabBtn == null) {
+            consecutiveFails++;
+            return;
+        }
+
+        // 6. 按策略延迟
+        int delay = strategy.getDelay(tier);
+        try { Thread.sleep(delay); } catch (InterruptedException ignored) {}
+
+        // 7. 执行抢单
+        boolean ok = interactor.clickNode(grabBtn);
         if (grabBtn != null) grabBtn.recycle();
+
+        if (ok) {
+            strategy.onGrab(tier);
+            lastGrabTime = System.currentTimeMillis();
+            int grabbed = config.getStatGrabbed() + 1;
+            config.setStatGrabbed(grabbed);
+            consecutiveFails = 0;
+
+            String msg = result.getStrategyName() + "抢单: " + order;
+            Log.d(TAG, msg);
+
+            // 震动
+            if (config.isVibrateOnGrab()) {
+                try { vibrate(); } catch (Exception ignored) {}
+            }
+
+            // 通知
+            if (config.isNotifyOnGrab()) {
+                notifHelper.notifyGrab(
+                    "抢单成功 " + result.getStrategyName(),
+                    order.toString() + " | " + result.reason);
+            }
+
+            // 按策略冷却
+            int coolMs = strategy.getCooldown(tier);
+            paused = true;
+            handler.postDelayed(() -> { paused = false; }, coolMs);
+
+        } else {
+            config.setStatFailed(config.getStatFailed() + 1);
+            consecutiveFails++;
+        }
     }
 
-    private boolean shouldGrab(String orderInfo) {
-        // 简化版：先不做复杂过滤，直接抢
-        return true;
-    }
-
-    private String extractOrderInfo(String pageText) {
-        if (pageText.length() > 50) return pageText.substring(0, 50) + "...";
-        return pageText;
+    private AccessibilityNodeInfo findGrabButton() {
+        AccessibilityNodeInfo btn = interactor.findNodeContaining("抢单");
+        if (btn == null) btn = interactor.findNodeContaining("接单");
+        if (btn == null) btn = interactor.findNodeContaining("领取");
+        if (btn == null) btn = interactor.findNodeContaining("确认");
+        return btn;
     }
 
     private void vibrate() {
         android.os.Vibrator v = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
         if (v != null && v.hasVibrator()) {
-            v.vibrate(200);
+            long[] pattern = {0, 100, 50, 100}; // 双震
+            v.vibrate(pattern, -1);
         }
     }
 }

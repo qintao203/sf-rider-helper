@@ -23,7 +23,7 @@ import android.widget.Toast;
 
 public class SettingsActivity extends Activity {
     private ConfigManager config;
-    private EditText etMin, etMax, etDist, etPref, etExcl, etScan, etDelay, etCool;
+    private EditText etMin, etMax, etDist, etPref, etExcl, etScan, etDelay, etCool, etScore;
     private CheckBox cbVib, cbNot, cbKeep;
 
     @Override
@@ -90,6 +90,10 @@ public class SettingsActivity extends Activity {
         etScan = makeSettingRow(content, "扫描间隔", "2000", "ms");
         etDelay = makeSettingRow(content, "点击延迟", "100", "ms");
         etCool = makeSettingRow(content, "失败冷却", "30", "秒");
+
+        content.addView(makeSection("🎯 抢单策略"));
+        content.addView(makeStrategySelector(content));
+        etScore = makeSettingRow(content, "最低评分", "20", "分");
 
         content.addView(makeSection("🔔 提醒设置"));
         cbVib = makeToggleRow(content, "抢单震动", true);
@@ -245,6 +249,75 @@ public class SettingsActivity extends Activity {
         return et;
     }
 
+    private CheckBox[] stratBtns;
+
+    private LinearLayout makeStrategySelector(LinearLayout parent) {
+        LinearLayout row = glassRow();
+        row.setPadding(dp(14), dp(6), dp(14), dp(6));
+
+        String[] modes = {"高优", "中优", "保底"};
+        String[] descs = {"秒抢优质单", "智能均衡", "保底接单"};
+        int[] colors = {ThemeEngine.NEON_GREEN, ThemeEngine.NEON_CYAN, ThemeEngine.NEON_ORANGE};
+        int currentMode = 1; // default: 中优
+        String saved = config.getStrategyMode();
+        for (int i = 0; i < modes.length; i++) {
+            if (saved.equals(modes[i])) currentMode = i;
+        }
+
+        stratBtns = new CheckBox[3];
+        for (int i = 0; i < 3; i++) {
+            final int idx = i;
+            LinearLayout btn = new LinearLayout(this);
+            btn.setOrientation(LinearLayout.VERTICAL);
+            btn.setGravity(Gravity.CENTER);
+            btn.setBackground(ThemeEngine.glassCard(
+                    i == currentMode ? 0x2200E5FF : ThemeEngine.BG_CARD_DARK,
+                    ThemeEngine.RADIUS_SMALL,
+                    i == currentMode ? 0x4400E5FF : ThemeEngine.BORDER_CARD));
+            btn.setLayoutParams(new LinearLayout.LayoutParams(0, dp(48), 1));
+            ((LinearLayout.LayoutParams)btn.getLayoutParams()).setMargins(dp(2), 0, dp(2), 0);
+            btn.setClickable(true);
+            btn.setTag(i);
+
+            // 模拟Checkbox选中状态
+            CheckBox cb = new CheckBox(this);
+            cb.setChecked(i == currentMode);
+            cb.setButtonDrawable(null);
+            cb.setBackground(ThemeEngine.dot(colors[i], 6, cb));
+            cb.setLayoutParams(new LinearLayout.LayoutParams(dp(6), dp(6)));
+            btn.addView(cb);
+            stratBtns[i] = cb;
+
+            TextView tv = new TextView(this);
+            tv.setText(modes[i]);
+            tv.setTextColor(i == currentMode ? colors[i] : ThemeEngine.TEXT_DISABLED);
+            tv.setTextSize(10);
+            tv.setTypeface(null, 1);
+            btn.addView(tv);
+
+            btn.setOnClickListener(v -> selectStrategy(idx, modes, descs, colors));
+
+            row.addView(btn);
+        }
+
+        return row;
+    }
+
+    private void selectStrategy(int idx, String[] modes, String[] descs, int[] colors) {
+        for (int i = 0; i < 3; i++) {
+            stratBtns[i].setChecked(i == idx);
+            LinearLayout p = (LinearLayout) stratBtns[i].getParent();
+            p.setBackground(ThemeEngine.glassCard(
+                    i == idx ? 0x2200E5FF : ThemeEngine.BG_CARD_DARK,
+                    ThemeEngine.RADIUS_SMALL,
+                    i == idx ? 0x4400E5FF : ThemeEngine.BORDER_CARD));
+            ((TextView) p.getChildAt(1)).setTextColor(
+                    i == idx ? colors[i] : ThemeEngine.TEXT_DISABLED);
+        }
+        // 保存
+        config.setStrategyMode(modes[idx]);
+    }
+
     private GradientDrawable toggleBg(boolean on) {
         return ThemeEngine.roundedBg(on ? 0xFF00E5FF : 0xFF33334D, dp(14));
     }
@@ -270,6 +343,7 @@ public class SettingsActivity extends Activity {
         etScan.setText(String.valueOf(config.getScanInterval()));
         etDelay.setText(String.valueOf(config.getGrabDelay()));
         etCool.setText(String.valueOf(config.getCooldownSeconds()));
+        etScore.setText(String.valueOf(config.getMinScore()));
         etPref.setText(TextUtils.join(",", config.getPreferredDirections()));
         etExcl.setText(TextUtils.join(",", config.getExcludedDirections()));
         cbVib.setChecked(config.isVibrateOnGrab());
@@ -290,6 +364,7 @@ public class SettingsActivity extends Activity {
             config.setVibrateOnGrab(cbVib.isChecked());
             config.setNotifyOnGrab(cbNot.isChecked());
             config.setKeepScreenOn(cbKeep.isChecked());
+            config.setMinScore(pi(etScore, 20));
             Toast.makeText(this, "✓ 已保存", Toast.LENGTH_SHORT).show();
         } catch (Exception e) { Toast.makeText(this, "✗ 保存失败", Toast.LENGTH_SHORT).show(); }
     }

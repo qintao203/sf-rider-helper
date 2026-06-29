@@ -70,6 +70,48 @@ public class MainActivity extends Activity {
         LinearLayout topBar = makeTopBar();
         root.addView(topBar);
 
+        // ========== 策略状态行 ==========
+        LinearLayout strategyBar = new LinearLayout(this);
+        strategyBar.setOrientation(LinearLayout.HORIZONTAL);
+        strategyBar.setGravity(Gravity.CENTER_VERTICAL);
+        strategyBar.setPadding(dp(20), dp(4), dp(20), dp(8));
+
+        View sDot = new View(this);
+        sDot.setBackground(ThemeEngine.roundedBg(ThemeEngine.NEON_PURPLE, dp(3)));
+        sDot.setLayoutParams(new LinearLayout.LayoutParams(dp(6), dp(6)));
+        ((LinearLayout.LayoutParams)sDot.getLayoutParams()).setMargins(0, 0, dp(6), 0);
+        strategyBar.addView(sDot);
+
+        TextView tvStratLabel = new TextView(this);
+        tvStratLabel.setText("策略");
+        tvStratLabel.setTextColor(ThemeEngine.TEXT_DISABLED);
+        tvStratLabel.setTextSize(11);
+        strategyBar.addView(tvStratLabel);
+
+        final TextView tvStratValue = new TextView(this);
+        tvStratValue.setText(config.getStrategyMode());
+        tvStratValue.setTextColor(ThemeEngine.NEON_PURPLE);
+        tvStratValue.setTextSize(11);
+        tvStratValue.setTypeface(null, 1);
+        tvStratValue.setPadding(dp(6), 0, dp(16), 0);
+        tvStratValue.setTag("strategy_value");
+        strategyBar.addView(tvStratValue);
+
+        TextView tvFilterLabel = new TextView(this);
+        tvFilterLabel.setText("过滤");
+        tvFilterLabel.setTextColor(ThemeEngine.TEXT_DISABLED);
+        tvFilterLabel.setTextSize(11);
+        strategyBar.addView(tvFilterLabel);
+
+        final TextView tvFilterValue = new TextView(this);
+        tvFilterValue.setText("等待");
+        tvFilterValue.setTextColor(ThemeEngine.TEXT_MUTED);
+        tvFilterValue.setTextSize(11);
+        tvFilterValue.setTag("filter_value");
+        strategyBar.addView(tvFilterValue);
+
+        root.addView(strategyBar);
+
         // ========== 中间大时钟 ==========
         LinearLayout clockWrap = new LinearLayout(this);
         clockWrap.setOrientation(LinearLayout.VERTICAL);
@@ -346,6 +388,11 @@ public class MainActivity extends Activity {
                     new int[]{0xFF1A1A30, 0xFF151525},
                     ThemeEngine.RADIUS_XLARGE));
             btnToggle.setTextColor(ThemeEngine.TEXT_SECONDARY);
+
+            // 更新策略状态
+            if (s.getLastFilterResult() != null) {
+                updateFilterDisplay(s);
+            }
         } else {
             statusDot.setBackground(ThemeEngine.dot(ThemeEngine.TEXT_DISABLED, 8, statusDot));
             tvStatusText.setText("未启动");
@@ -356,6 +403,24 @@ public class MainActivity extends Activity {
                     new int[]{0xFFFF3366, 0xFFFF4500},
                     ThemeEngine.RADIUS_XLARGE));
             btnToggle.setTextColor(0xFF0A0A14);
+        }
+    }
+
+    private void updateFilterDisplay(GrabAccessibilityService s) {
+        GrabFilterEngine.FilterResult fr = s.getLastFilterResult();
+        TextView tvFilter = findViewById(android.R.id.content).getRootView()
+                .findViewWithTag("filter_value");
+        TextView tvStrat = findViewById(android.R.id.content).getRootView()
+                .findViewWithTag("strategy_value");
+        if (tvFilter != null) {
+            tvFilter.setText(fr.getStrategyName() + " " + fr.score + "分");
+            int color = fr.score >= 80 ? ThemeEngine.NEON_GREEN :
+                        fr.score >= 50 ? ThemeEngine.NEON_CYAN :
+                        fr.score >= 20 ? ThemeEngine.NEON_ORANGE : ThemeEngine.NEON_ROSE;
+            tvFilter.setTextColor(color);
+        }
+        if (tvStrat != null && s.getLastTier() != null) {
+            tvStrat.setText(s.getLastTier().label);
         }
     }
 
