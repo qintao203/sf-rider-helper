@@ -199,7 +199,6 @@ public class SplashActivity extends Activity {
     }
 
         private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + 0.5f); }
-            findViewById(android.R.id.content) : new View(this)); }
 
     private GradientDrawable glassCard(int color, int radius, int borderColor) {
         GradientDrawable g = new GradientDrawable();
