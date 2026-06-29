@@ -59,6 +59,8 @@ public class ConfigManager {
     public void setNotifyOnGrab(boolean v) { sp.edit().putBoolean("notify", v).apply(); }
     public boolean isKeepScreenOn() { return sp.getBoolean("keep_screen", true); }
     public void setKeepScreenOn(boolean v) { sp.edit().putBoolean("keep_screen", v).apply(); }
+    public boolean isTtsEnabled() { return sp.getBoolean("tts", true); }
+    public void setTtsEnabled(boolean v) { sp.edit().putBoolean("tts", v).apply(); }
 
     // --- 策略 ---
     public String getStrategyMode() { return sp.getString("strategy_mode", "中优"); }

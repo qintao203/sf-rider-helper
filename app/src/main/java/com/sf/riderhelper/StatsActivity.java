@@ -5,23 +5,30 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 public class StatsActivity extends Activity {
     private ConfigManager config;
+    private OrderDatabase orderDb;
 
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         makeFullScreen();
         config = ConfigManager.getInstance(this);
+        orderDb = OrderDatabase.getInstance(this);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -50,7 +57,7 @@ public class StatsActivity extends Activity {
         header.addView(accent);
 
         TextView title = new TextView(this);
-        title.setText("数据统计");
+        title.setText("订单历史");
         title.setTextColor(ThemeEngine.TEXT_PRIMARY);
         title.setTextSize(17);
         title.setTypeface(null, 1);
@@ -59,167 +66,210 @@ public class StatsActivity extends Activity {
 
         root.addView(header);
 
-        // ========== 统计大卡片 ==========
-        LinearLayout bigCard = new LinearLayout(this);
-        bigCard.setOrientation(LinearLayout.HORIZONTAL);
-        bigCard.setPadding(dp(20), dp(32), dp(20), dp(32));
-        bigCard.setBackground(ThemeEngine.glassCard(
-                ThemeEngine.BG_CARD, ThemeEngine.RADIUS_LARGE, ThemeEngine.BORDER_GLOW));
-        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(-1, -2);
-        clp.setMargins(dp(16), dp(20), dp(16), 0);
-        bigCard.setLayoutParams(clp);
+        // ========== 获取数据 ==========
+        OrderDatabase.Stats stats = orderDb.getStats();
+        List<OrderDatabase.OrderRecord> records = orderDb.getRecent(100);
 
-        bigCard.addView(makeBigStatCell(config.getStatGrabbed(), "成功", ThemeEngine.NEON_GREEN));
-        bigCard.addView(makeBigStatCell(config.getStatFailed(), "失败", ThemeEngine.NEON_ROSE));
-        bigCard.addView(makeBigStatCell(config.getStatGrabbed() * 12, "收入", ThemeEngine.NEON_GOLD));
+        // ========== 统计概览卡 ==========
+        LinearLayout statBar = new LinearLayout(this);
+        statBar.setOrientation(LinearLayout.HORIZONTAL);
+        statBar.setPadding(dp(16), dp(12), dp(16), dp(4));
 
-        root.addView(bigCard);
+        statBar.addView(makeStatPill("成功", String.valueOf(stats.totalGrabbed), ThemeEngine.NEON_GREEN));
+        statBar.addView(makeStatPill("失败", String.valueOf(stats.totalFailed), ThemeEngine.NEON_ROSE));
+        statBar.addView(makeStatPill("过滤", String.valueOf(stats.totalSkipped), ThemeEngine.TEXT_DISABLED));
+        statBar.addView(makeStatPill("收入", "¥" + String.format("%.0f", stats.totalIncome), ThemeEngine.NEON_GOLD));
 
-        // ========== 今日汇总小卡片 ==========
-        LinearLayout miniRow = new LinearLayout(this);
-        miniRow.setOrientation(LinearLayout.HORIZONTAL);
-        miniRow.setPadding(dp(16), dp(10), dp(16), 0);
+        root.addView(statBar);
 
-        int grabbed = config.getStatGrabbed();
-        int failed = config.getStatFailed();
-        float rate = (grabbed + failed) > 0 ? (float)grabbed / (grabbed + failed) * 100 : 0;
-        float income = grabbed * 12;
+        // ========== 订单列表 ==========
+        ScrollView sv = new ScrollView(this);
+        sv.setLayoutParams(new LinearLayout.LayoutParams(-1, -1));
 
-        miniRow.addView(makeMiniCard("成功率", String.format("%.0f%%", rate), ThemeEngine.NEON_CYAN));
-        miniRow.addView(makeMiniCard("总收入", "¥" + income, ThemeEngine.NEON_GOLD));
-        miniRow.addView(makeMiniCard("总单数", String.valueOf(grabbed + failed), ThemeEngine.NEON_PURPLE));
+        LinearLayout listContent = new LinearLayout(this);
+        listContent.setOrientation(LinearLayout.VERTICAL);
+        listContent.setPadding(dp(16), dp(8), dp(16), dp(24));
 
-        root.addView(miniRow);
+        if (records.isEmpty()) {
+            // 空状态
+            LinearLayout emptyWrap = new LinearLayout(this);
+            emptyWrap.setOrientation(LinearLayout.VERTICAL);
+            emptyWrap.setGravity(Gravity.CENTER);
+            emptyWrap.setPadding(0, dp(60), 0, 0);
 
-        // ========== 空状态 ==========
-        LinearLayout emptyWrap = new LinearLayout(this);
-        emptyWrap.setOrientation(LinearLayout.VERTICAL);
-        emptyWrap.setGravity(Gravity.CENTER);
-        emptyWrap.setLayoutParams(new LinearLayout.LayoutParams(-1, -1));
-        emptyWrap.setPadding(0, dp(40), 0, 0);
+            TextView ei = new TextView(this);
+            ei.setText("📋");
+            ei.setTextSize(36);
+            emptyWrap.addView(ei);
 
-        // 环形进度占位
-        LinearLayout ringPlaceholder = new LinearLayout(this);
-        ringPlaceholder.setGravity(Gravity.CENTER);
-        ringPlaceholder.setBackground(ThemeEngine.glassCard(
-                0x1A00E5FF, dp(50), 0x2200E5FF));
-        ringPlaceholder.setLayoutParams(new LinearLayout.LayoutParams(dp(80), dp(80)));
+            TextView et = new TextView(this);
+            et.setText("暂无记录");
+            et.setTextColor(ThemeEngine.TEXT_DISABLED);
+            et.setTextSize(14);
+            et.setPadding(0, dp(12), 0, dp(4));
+            emptyWrap.addView(et);
 
-        TextView ringIcon = new TextView(this);
-        ringIcon.setText("📊");
-        ringIcon.setTextSize(32);
-        ringPlaceholder.addView(ringIcon);
-        emptyWrap.addView(ringPlaceholder);
+            TextView es = new TextView(this);
+            es.setText("启动服务后自动记录");
+            es.setTextColor(ThemeEngine.TEXT_MUTED);
+            es.setTextSize(12);
+            emptyWrap.addView(es);
 
-        TextView emptyText = new TextView(this);
-        emptyText.setText("暂无抢单记录");
-        emptyText.setTextColor(ThemeEngine.TEXT_DISABLED);
-        emptyText.setTextSize(14);
-        emptyText.setPadding(0, dp(16), 0, dp(4));
-        emptyText.setGravity(Gravity.CENTER);
-        emptyWrap.addView(emptyText);
+            listContent.addView(emptyWrap);
+        } else {
+            // 列表头
+            LinearLayout headerRow = new LinearLayout(this);
+            headerRow.setOrientation(LinearLayout.HORIZONTAL);
+            headerRow.setPadding(dp(12), dp(6), dp(12), dp(4));
 
-        TextView emptySub = new TextView(this);
-        emptySub.setText("启动服务后自动记录每笔订单");
-        emptySub.setTextColor(ThemeEngine.TEXT_MUTED);
-        emptySub.setTextSize(12);
-        emptySub.setGravity(Gravity.CENTER);
-        emptyWrap.addView(emptySub);
+            String[] cols = {"时间", "策略", "金额", "方向", "结果"};
+            int[] widths = {56, 36, 48, 60, 36};
+            for (int i = 0; i < cols.length; i++) {
+                TextView h = new TextView(this);
+                h.setText(cols[i]);
+                h.setTextColor(ThemeEngine.TEXT_MUTED);
+                h.setTextSize(9);
+                h.setLayoutParams(new LinearLayout.LayoutParams(dp(widths[i]), -2));
+                headerRow.addView(h);
+            }
+            listContent.addView(headerRow);
 
-        // 清除按钮
-        if (grabbed + failed > 0) {
-            Button clearBtn = new Button(this);
-            clearBtn.setText("清除数据");
-            clearBtn.setTextColor(ThemeEngine.NEON_ROSE);
-            clearBtn.setTextSize(12);
-            clearBtn.setBackground(ThemeEngine.glassCard(
-                    0x22FF3366, ThemeEngine.RADIUS_SMALL, 0x22FF3366));
-            clearBtn.setPadding(dp(16), dp(6), dp(16), dp(6));
-            clearBtn.setLayoutParams(new LinearLayout.LayoutParams(-2, -2));
-            ((LinearLayout.LayoutParams)clearBtn.getLayoutParams()).setMargins(0, dp(16), 0, 0);
-            clearBtn.setOnClickListener(v -> {
-                config.resetStats();
-                recreate();
-            });
-            emptyWrap.addView(clearBtn);
+            // 分割线
+            View divider = new View(this);
+            divider.setBackgroundColor(0x1AFFFFFF);
+            divider.setLayoutParams(new LinearLayout.LayoutParams(-1, 1));
+            ((LinearLayout.LayoutParams)divider.getLayoutParams()).setMargins(0, dp(4), 0, dp(4));
+            listContent.addView(divider);
+
+            // 每行记录
+            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
+            for (OrderDatabase.OrderRecord rec : records) {
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setBackground(ThemeEngine.glassCard(ThemeEngine.BG_CARD,
+                        ThemeEngine.RADIUS_SMALL, ThemeEngine.BORDER_CARD));
+                row.setPadding(dp(12), dp(8), dp(12), dp(8));
+                LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(-1, -2);
+                rlp.setMargins(0, dp(2), 0, dp(2));
+                row.setLayoutParams(rlp);
+
+                int resultColor = rec.isSuccess() ? ThemeEngine.NEON_GREEN : ThemeEngine.NEON_ROSE;
+
+                // 时间
+                TextView tvTime = new TextView(this);
+                tvTime.setText(sdf.format(new Date(rec.timestamp)));
+                tvTime.setTextColor(ThemeEngine.TEXT_MUTED);
+                tvTime.setTextSize(10);
+                tvTime.setLayoutParams(new LinearLayout.LayoutParams(dp(56), -2));
+                row.addView(tvTime);
+
+                // 策略标签
+                TextView tvStrat = new TextView(this);
+                tvStrat.setText(rec.strategy != null ? rec.strategy : "-");
+                tvStrat.setTextColor(stratColor(rec.strategy));
+                tvStrat.setTextSize(9);
+                tvStrat.setTypeface(null, 1);
+                tvStrat.setLayoutParams(new LinearLayout.LayoutParams(dp(36), -2));
+                row.addView(tvStrat);
+
+                // 金额
+                TextView tvPrice = new TextView(this);
+                tvPrice.setText("¥" + String.format("%.1f", rec.price));
+                tvPrice.setTextColor(ThemeEngine.TEXT_PRIMARY);
+                tvPrice.setTextSize(13);
+                tvPrice.setTypeface(null, 1);
+                tvPrice.setLayoutParams(new LinearLayout.LayoutParams(dp(48), -2));
+                row.addView(tvPrice);
+
+                // 方向
+                TextView tvDir = new TextView(this);
+                tvDir.setText(rec.direction != null && !rec.direction.isEmpty() ?
+                        rec.direction : "-");
+                tvDir.setTextColor(ThemeEngine.TEXT_SECONDARY);
+                tvDir.setTextSize(10);
+                tvDir.setLayoutParams(new LinearLayout.LayoutParams(dp(60), -2));
+                row.addView(tvDir);
+
+                // 结果
+                TextView tvRes = new TextView(this);
+                tvRes.setText(rec.isSuccess() ? "✓" : "✗");
+                tvRes.setTextColor(resultColor);
+                tvRes.setTextSize(14);
+                tvRes.setTypeface(null, 1);
+                tvRes.setGravity(Gravity.CENTER);
+                tvRes.setLayoutParams(new LinearLayout.LayoutParams(dp(36), -2));
+                row.addView(tvRes);
+
+                listContent.addView(row);
+            }
+
+            // 清除按钮
+            if (!records.isEmpty()) {
+                Button clearBtn = new Button(this);
+                clearBtn.setText("🗑 清除全部记录");
+                clearBtn.setTextColor(ThemeEngine.NEON_ROSE);
+                clearBtn.setTextSize(12);
+                clearBtn.setBackground(ThemeEngine.glassCard(
+                        0x22FF3366, ThemeEngine.RADIUS_SMALL, 0x22FF3366));
+                clearBtn.setPadding(dp(20), dp(8), dp(20), dp(8));
+                clearBtn.setLayoutParams(new LinearLayout.LayoutParams(-2, -2));
+                ((LinearLayout.LayoutParams)clearBtn.getLayoutParams()).setMargins(0, dp(12), 0, 0);
+                clearBtn.setOnClickListener(v -> {
+                    orderDb.clearAll();
+                    config.resetStats();
+                    recreate();
+                });
+                listContent.addView(clearBtn);
+            }
         }
 
-        root.addView(emptyWrap);
+        sv.addView(listContent);
+        root.addView(sv);
 
         setContentView(root);
 
-        // ========== 入场动画 ==========
-        bigCard.setAlpha(0f);
-        bigCard.setTranslationY(dp(20));
-        bigCard.animate().alpha(1f).translationY(0)
-                .setDuration(400).setStartDelay(200).start();
-
-        miniRow.setAlpha(0f);
-        miniRow.animate().alpha(1f).setDuration(300).setStartDelay(400).start();
-
-        ringPlaceholder.setScaleX(0f);
-        ringPlaceholder.setScaleY(0f);
-        ringPlaceholder.animate().scaleX(1f).scaleY(1f)
-                .setDuration(400).setStartDelay(600).start();
+        // 入场动画
+        statBar.setAlpha(0f);
+        statBar.animate().alpha(1f).setDuration(300).setStartDelay(200).start();
     }
 
-    private LinearLayout makeBigStatCell(int value, String label, int color) {
-        LinearLayout cell = new LinearLayout(this);
-        cell.setOrientation(LinearLayout.VERTICAL);
-        cell.setGravity(Gravity.CENTER);
-        cell.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
-
-        // 小装饰线
-        View line = new View(this);
-        line.setBackground(ThemeEngine.roundedBg(color, 1));
-        line.setLayoutParams(new LinearLayout.LayoutParams(dp(16), dp(2)));
-        cell.addView(line);
-
-        TextView num = new TextView(this);
-        num.setText(value == 0 ? "0" : String.valueOf(value));
-        num.setTextColor(color);
-        num.setTextSize(30);
-        num.setTypeface(null, 1);
-        num.setGravity(Gravity.CENTER);
-        num.setPadding(0, dp(8), 0, dp(2));
-        cell.addView(num);
-
-        TextView lbl = new TextView(this);
-        lbl.setText(label);
-        lbl.setTextColor(ThemeEngine.TEXT_DISABLED);
-        lbl.setTextSize(12);
-        lbl.setGravity(Gravity.CENTER);
-        cell.addView(lbl);
-
-        return cell;
+    private int stratColor(String strategy) {
+        if (strategy == null) return ThemeEngine.TEXT_DISABLED;
+        switch (strategy) {
+            case "高优": return ThemeEngine.NEON_GREEN;
+            case "中优": return ThemeEngine.NEON_CYAN;
+            case "保底": return ThemeEngine.NEON_ORANGE;
+            default: return ThemeEngine.TEXT_DISABLED;
+        }
     }
 
-    private LinearLayout makeMiniCard(String label, String value, int color) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setGravity(Gravity.CENTER);
-        card.setBackground(ThemeEngine.glassCard(
-                ThemeEngine.BG_CARD, ThemeEngine.RADIUS_SMALL, ThemeEngine.BORDER_CARD));
-        card.setLayoutParams(new LinearLayout.LayoutParams(0, dp(56), 1));
-        ((LinearLayout.LayoutParams)card.getLayoutParams()).setMargins(dp(3), 0, dp(3), 0);
-        card.setPadding(0, dp(8), 0, dp(8));
+    private LinearLayout makeStatPill(String label, String value, int color) {
+        LinearLayout pill = new LinearLayout(this);
+        pill.setOrientation(LinearLayout.VERTICAL);
+        pill.setGravity(Gravity.CENTER);
+        pill.setBackground(ThemeEngine.glassCard(ThemeEngine.BG_CARD,
+                ThemeEngine.RADIUS_MEDIUM, ThemeEngine.BORDER_CARD));
+        pill.setLayoutParams(new LinearLayout.LayoutParams(0, dp(64), 1));
+        ((LinearLayout.LayoutParams)pill.getLayoutParams()).setMargins(dp(3), 0, dp(3), 0);
+        pill.setPadding(0, dp(6), 0, dp(6));
 
         TextView v = new TextView(this);
         v.setText(value);
         v.setTextColor(color);
-        v.setTextSize(15);
+        v.setTextSize(16);
         v.setTypeface(null, 1);
         v.setGravity(Gravity.CENTER);
-        card.addView(v);
+        pill.addView(v);
 
         TextView lbl = new TextView(this);
         lbl.setText(label);
         lbl.setTextColor(ThemeEngine.TEXT_DISABLED);
         lbl.setTextSize(10);
         lbl.setGravity(Gravity.CENTER);
-        card.addView(lbl);
+        pill.addView(lbl);
 
-        return card;
+        return pill;
     }
 
     private void makeFullScreen() {
@@ -234,5 +284,5 @@ public class StatsActivity extends Activity {
         getWindow().setStatusBarColor(ThemeEngine.BG_DARK);
     }
 
-        private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + 0.5f); }
+    private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + 0.5f); }
 }

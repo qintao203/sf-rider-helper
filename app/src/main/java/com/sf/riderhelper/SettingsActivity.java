@@ -24,7 +24,7 @@ import android.widget.Toast;
 public class SettingsActivity extends Activity {
     private ConfigManager config;
     private EditText etMin, etMax, etDist, etPref, etExcl, etScan, etDelay, etCool, etScore;
-    private CheckBox cbVib, cbNot, cbKeep;
+    private CheckBox cbVib, cbNot, cbTts, cbKeep;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -98,6 +98,7 @@ public class SettingsActivity extends Activity {
         content.addView(makeSection("🔔 提醒设置"));
         cbVib = makeToggleRow(content, "抢单震动", true);
         cbNot = makeToggleRow(content, "抢单通知", true);
+        cbTts = makeToggleRow(content, "语音播报", true);
         cbKeep = makeToggleRow(content, "屏幕常亮", true);
 
         // ========== 保存按钮 ==========
@@ -348,6 +349,7 @@ public class SettingsActivity extends Activity {
         etExcl.setText(TextUtils.join(",", config.getExcludedDirections()));
         cbVib.setChecked(config.isVibrateOnGrab());
         cbNot.setChecked(config.isNotifyOnGrab());
+        cbTts.setChecked(config.isTtsEnabled());
         cbKeep.setChecked(config.isKeepScreenOn());
     }
 
@@ -363,6 +365,7 @@ public class SettingsActivity extends Activity {
             config.setExcludedDirections(etExcl.getText().toString().trim());
             config.setVibrateOnGrab(cbVib.isChecked());
             config.setNotifyOnGrab(cbNot.isChecked());
+            config.setTtsEnabled(cbTts.isChecked());
             config.setKeepScreenOn(cbKeep.isChecked());
             config.setMinScore(pi(etScore, 20));
             Toast.makeText(this, "✓ 已保存", Toast.LENGTH_SHORT).show();

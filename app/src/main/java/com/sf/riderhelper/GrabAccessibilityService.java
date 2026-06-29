@@ -20,6 +20,8 @@ public class GrabAccessibilityService extends AccessibilityService {
     private NotificationHelper notifHelper;
     private GrabFilterEngine filterEngine;
     private GrabStrategy strategy;
+    private TextSpeaker textSpeaker;
+    private OrderDatabase orderDb;
     private Runnable grabLoop;
     private long lastGrabTime = 0;
     private int consecutiveFails = 0;
@@ -45,7 +47,10 @@ public class GrabAccessibilityService extends AccessibilityService {
         notifHelper = new NotificationHelper(this);
         filterEngine = new GrabFilterEngine(config);
         strategy = new GrabStrategy(config);
-        Log.d(TAG, "GrabAccessibilityService created with smart engine");
+        textSpeaker = new TextSpeaker(this);
+        textSpeaker.init();
+        orderDb = OrderDatabase.getInstance(this);
+        Log.d(TAG, "GrabAccessibilityService created with smart engine + DB + TTS");
     }
 
     @Override
@@ -175,6 +180,15 @@ public class GrabAccessibilityService extends AccessibilityService {
                     "抢单成功 " + result.getStrategyName(),
                     order.toString() + " | " + result.reason);
             }
+
+            // 语音播报
+            textSpeaker.setEnabled(config.isTtsEnabled());
+            textSpeaker.speakGrab(order.price, order.direction, order.distance, result.getStrategyName());
+
+            // 保存到数据库
+            orderDb.insertOrder(lastGrabTime, order.price, order.distance,
+                    order.direction, order.storeName, "success",
+                    result.getStrategyName(), result.score, result.reason);
 
             // 按策略冷却
             int coolMs = strategy.getCooldown(tier);
