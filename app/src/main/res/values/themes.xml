@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.SFRiderHelper" parent="@android:style/Theme.DeviceDefault.NoActionBar" />
+    <style name="Theme.SFRiderSplash" parent="@android:style/Theme.DeviceDefault" />
 </resources>
