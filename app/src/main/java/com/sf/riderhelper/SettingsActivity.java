@@ -244,7 +244,7 @@ public class SettingsActivity extends Activity {
         return et;
     }
 
-    private View toggleBg(boolean on) {
+    private GradientDrawable toggleBg(boolean on) {
         return ThemeEngine.roundedBg(on ? 0xFF00E5FF : 0xFF33334D, dp(14));
     }
 
