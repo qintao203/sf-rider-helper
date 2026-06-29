@@ -2,227 +2,252 @@ package com.sf.riderhelper;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.SystemClock;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
     private ConfigManager config;
-    private Handler handler = new Handler();
-    private long startTime = 0;
-    private TextView tvGrabbed, tvFailed, tvSkipped, tvIncome, tvUptime, tvShortStatus;
-    private Button btnToggle, btnPause;
-    private View statusDot;
+    private TextView tvGrabbed, tvFailed, tvSkipped, tvIncome, tvUptime;
+    private Button btnToggle;
+    private View statusIndicator;
 
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        makeFullScreen();
         config = ConfigManager.getInstance(this);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF0F0F1A);
-        root.setPadding(16, 16, 16, 16);
+        root.setBackgroundColor(0xFF0A0A14);
 
-        // 状态行
-        LinearLayout statusRow = new LinearLayout(this);
-        statusRow.setOrientation(LinearLayout.HORIZONTAL);
-        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        // ========== 顶部状态区 ==========
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setOrientation(LinearLayout.HORIZONTAL);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        topBar.setPadding(dp(20), dp(12), dp(20), dp(12));
+        topBar.setBackgroundColor(0xFF12121E);
+        topBar.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
 
-        statusDot = new View(this);
-        statusDot.setBackgroundColor(0xFF888888);
-        statusDot.setLayoutParams(new LinearLayout.LayoutParams(10, 10));
-        ((LinearLayout.LayoutParams)statusDot.getLayoutParams()).setMargins(0, 0, 6, 0);
-        statusRow.addView(statusDot);
+        statusIndicator = new View(this);
+        statusIndicator.setBackground(dot(0xFF6B6B80, 8));
+        statusIndicator.setLayoutParams(new LinearLayout.LayoutParams(dp(8), dp(8)));
+        ((LinearLayout.LayoutParams)statusIndicator.getLayoutParams()).setMargins(0, 0, dp(8), 0);
+        topBar.addView(statusIndicator);
 
-        tvShortStatus = new TextView(this);
-        tvShortStatus.setText("未启动");
-        tvShortStatus.setTextColor(0xFF888888);
-        tvShortStatus.setTextSize(14);
-        statusRow.addView(tvShortStatus);
+        TextView tvServiceLabel = new TextView(this);
+        tvServiceLabel.setText("抢单服务");
+        tvServiceLabel.setTextColor(0xFF9E9EB8);
+        tvServiceLabel.setTextSize(14);
+        topBar.addView(tvServiceLabel);
 
-        root.addView(statusRow);
+        TextView tvServiceStatus = new TextView(this);
+        tvServiceStatus.setText("未启动");
+        tvServiceStatus.setTextColor(0xFF6B6B80);
+        tvServiceStatus.setTextSize(14);
+        tvServiceStatus.setGravity(Gravity.END);
+        tvServiceStatus.setTag("status_text");
+        LinearLayout.LayoutParams ssp = new LinearLayout.LayoutParams(0, -2, 1);
+        ssp.setMargins(dp(8), 0, 0, 0);
+        tvServiceStatus.setLayoutParams(ssp);
+        topBar.addView(tvServiceStatus);
 
-        // 运行时间
+        root.addView(topBar);
+
+        // ========== 运行时间（大号数字） ==========
+        LinearLayout centerWrap = new LinearLayout(this);
+        centerWrap.setOrientation(LinearLayout.VERTICAL);
+        centerWrap.setGravity(Gravity.CENTER);
+        centerWrap.setPadding(0, dp(40), 0, dp(32));
+
         tvUptime = new TextView(this);
         tvUptime.setText("--:--:--");
-        tvUptime.setTextColor(0xFF333355);
-        tvUptime.setTextSize(36);
+        tvUptime.setTextColor(0xFFFFFFFF);
+        tvUptime.setTextSize(52);
         tvUptime.setTypeface(null, 1);
         tvUptime.setGravity(Gravity.CENTER);
-        root.addView(tvUptime);
+        centerWrap.addView(tvUptime);
 
-        // 统计卡片
-        LinearLayout statCard = new LinearLayout(this);
-        statCard.setOrientation(LinearLayout.HORIZONTAL);
-        statCard.setBackgroundColor(0xFF16213E);
-        statCard.setPadding(4, 8, 4, 8);
-        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        slp.setMargins(0, 16, 0, 0);
-        statCard.setLayoutParams(slp);
+        TextView tvUptimeLabel = new TextView(this);
+        tvUptimeLabel.setText("运行时间");
+        tvUptimeLabel.setTextColor(0xFF555570);
+        tvUptimeLabel.setTextSize(12);
+        tvUptimeLabel.setGravity(Gravity.CENTER);
+        tvUptimeLabel.setPadding(0, dp(4), 0, 0);
+        centerWrap.addView(tvUptimeLabel);
 
-        tvGrabbed = makeStatItem(statCard, "成功", 0xFF4CAF50);
-        tvFailed = makeStatItem(statCard, "失败", 0xFFE94560);
-        tvSkipped = makeStatItem(statCard, "过滤", 0xFF888888);
-        tvIncome = makeStatItem(statCard, "收入", 0xFFFFD700);
-        root.addView(statCard);
+        root.addView(centerWrap);
 
-        // 控制按钮行
-        LinearLayout btnRow = new LinearLayout(this);
-        btnRow.setOrientation(LinearLayout.HORIZONTAL);
-        btnRow.setPadding(0, 12, 0, 0);
-        btnRow.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        // ========== 统计卡片（4列） ==========
+        LinearLayout statRow = new LinearLayout(this);
+        statRow.setOrientation(LinearLayout.HORIZONTAL);
+        statRow.setPadding(dp(16), 0, dp(16), dp(16));
+
+        tvGrabbed = makeStatCard(statRow, "成功", 0);
+        tvFailed = makeStatCard(statRow, "失败", 0);
+        tvSkipped = makeStatCard(statRow, "过滤", 0);
+        tvIncome = makeStatCard(statRow, "收入", 0);
+        root.addView(statRow);
+
+        // ========== 功能网格 ==========
+        LinearLayout grid = new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        grid.setPadding(dp(16), 0, dp(16), dp(12));
+        grid.setLayoutParams(new LinearLayout.LayoutParams(-1, 0, 1));
+
+        // 第一行：启动 + 暂停
+        LinearLayout row1 = new LinearLayout(this);
+        row1.setOrientation(LinearLayout.HORIZONTAL);
+        row1.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
 
         btnToggle = new Button(this);
         btnToggle.setText("启动服务");
         btnToggle.setTextColor(0xFFFFFFFF);
         btnToggle.setTextSize(15);
         btnToggle.setTypeface(null, 1);
-        btnToggle.setBackgroundColor(0xFFE94560);
-        btnToggle.setLayoutParams(new LinearLayout.LayoutParams(0, 48, 1));
-        btnRow.addView(btnToggle);
+        btnToggle.setBackground(btnBg(0xFFE94560, 12));
+        btnToggle.setLayoutParams(new LinearLayout.LayoutParams(0, dp(48), 1));
+        btnToggle.setOnClickListener(v -> toggle());
+        row1.addView(btnToggle);
 
-        btnPause = new Button(this);
-        btnPause.setText("暂停");
-        btnPause.setTextColor(0xFFCCCCCC);
-        btnPause.setTextSize(15);
-        btnPause.setBackgroundColor(0xFF333355);
-        btnPause.setLayoutParams(new LinearLayout.LayoutParams(0, 48, 1));
-        ((LinearLayout.LayoutParams)btnPause.getLayoutParams()).leftMargin = 8;
-        btnPause.setVisibility(View.GONE);
-        btnRow.addView(btnPause);
+        root.addView(row1);
 
-        root.addView(btnRow);
+        // 第二行：功能按钮（设置/日志/重置）
+        LinearLayout row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row2.setPadding(0, dp(12), 0, 0);
 
-        // 底部功能按钮
-        LinearLayout funcRow = new LinearLayout(this);
-        funcRow.setOrientation(LinearLayout.HORIZONTAL);
-        funcRow.setPadding(0, 16, 0, 0);
-        funcRow.setGravity(Gravity.CENTER_HORIZONTAL);
+        row2.addView(makeGridBtn("设置", "⚙️", () -> startActivity(new Intent(this, SettingsActivity.class))));
+        row2.addView(makeGridBtn("日志", "📊", () -> startActivity(new Intent(this, StatsActivity.class))));
+        row2.addView(makeGridBtn("重置", "🔄", () -> { config.resetStats(); refreshStats(); }));
 
-        funcRow.addView(makeFuncBtn("设置", "⚙️"));
-        funcRow.addView(makeFuncBtn("日志", "📊"));
-        funcRow.addView(makeFuncBtn("重置", "🔄"));
+        root.addView(row2);
 
-        root.addView(funcRow);
-
-        // 版本号
-        TextView tvVersion = new TextView(this);
-        tvVersion.setText("顺丰抢单助手 v5.5.0");
-        tvVersion.setTextColor(0xFF333355);
-        tvVersion.setTextSize(11);
-        tvVersion.setGravity(Gravity.CENTER);
-        tvVersion.setPadding(0, 8, 0, 0);
-        root.addView(tvVersion);
+        // ========== 版本信息（底部） ==========
+        TextView tvVer = new TextView(this);
+        tvVer.setText("顺丰抢单助手 v5.5.0");
+        tvVer.setTextColor(0xFF2A2A3E);
+        tvVer.setTextSize(11);
+        tvVer.setGravity(Gravity.CENTER);
+        tvVer.setPadding(0, dp(16), 0, dp(12));
+        root.addView(tvVer);
 
         setContentView(root);
-
-        // 事件绑定
-        btnToggle.setOnClickListener(v -> toggle());
-        btnPause.setOnClickListener(v -> pause());
-
-        doUpdateUI();
-        doRefresh();
+        refreshStats();
+        updateServiceUI();
 
         // 定时刷新
-        handler.postDelayed(new Runnable() {
+        getWindow().getDecorView().postDelayed(new Runnable() {
             @Override
-            public void run() {
-                if (!isFinishing()) { doRefresh(); doUpdateUI(); handler.postDelayed(this, 3000); }
-            }
+            public void run() { if (!isFinishing()) { refreshStats(); updateServiceUI(); getWindow().getDecorView().postDelayed(this, 3000); } }
         }, 3000);
     }
 
-    private TextView makeStatItem(LinearLayout parent, String label, int color) {
-        LinearLayout item = new LinearLayout(this);
-        item.setOrientation(LinearLayout.VERTICAL);
-        item.setGravity(Gravity.CENTER);
-        item.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+    // ---------- 构建方法 ----------
+
+    private TextView makeStatCard(LinearLayout parent, String label, int colorRes) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER);
+        card.setBackground(card(0xFF151525));
+        card.setLayoutParams(new LinearLayout.LayoutParams(0, dp(80), 1));
+        ((LinearLayout.LayoutParams)card.getLayoutParams()).setMargins(dp(3), 0, dp(3), 0);
 
         TextView num = new TextView(this);
         num.setText("0");
-        num.setTextColor(color);
         num.setTextSize(22);
         num.setTypeface(null, 1);
         num.setGravity(Gravity.CENTER);
-        item.addView(num);
+        card.addView(num);
 
         TextView lbl = new TextView(this);
         lbl.setText(label);
-        lbl.setTextColor(0xFF888888);
+        lbl.setTextColor(0xFF6B6B80);
         lbl.setTextSize(11);
         lbl.setGravity(Gravity.CENTER);
-        item.addView(lbl);
+        lbl.setPadding(0, dp(2), 0, 0);
+        card.addView(lbl);
 
-        parent.addView(item);
+        parent.addView(card);
         return num;
     }
 
-    private LinearLayout makeFuncBtn(String label, String icon) {
+    private LinearLayout makeGridBtn(String label, String icon, Runnable onClick) {
         LinearLayout btn = new LinearLayout(this);
         btn.setOrientation(LinearLayout.VERTICAL);
         btn.setGravity(Gravity.CENTER);
-        btn.setBackgroundColor(0xFF16213E);
-        btn.setPadding(8, 12, 8, 12);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, 76, 1);
-        lp.setMargins(4, 0, 4, 0);
-        btn.setLayoutParams(lp);
+        btn.setBackground(card(0xFF151525));
+        btn.setLayoutParams(new LinearLayout.LayoutParams(0, dp(72), 1));
+        ((LinearLayout.LayoutParams)btn.getLayoutParams()).setMargins(dp(3), 0, dp(3), 0);
         btn.setClickable(true);
         btn.setFocusable(true);
 
         TextView iv = new TextView(this);
         iv.setText(icon);
-        iv.setTextSize(22);
+        iv.setTextSize(20);
         btn.addView(iv);
 
         TextView tv = new TextView(this);
         tv.setText(label);
-        tv.setTextColor(0xFFCCCCCC);
+        tv.setTextColor(0xFF9E9EB8);
         tv.setTextSize(12);
         btn.addView(tv);
 
-        btn.setOnClickListener(v -> {
-            switch (label) {
-                case "设置": startActivity(new Intent(MainActivity.this, SettingsActivity.class)); break;
-                case "日志": startActivity(new Intent(MainActivity.this, StatsActivity.class)); break;
-                case "重置": config.resetStats(); doRefresh(); break;
-            }
-        });
-
+        btn.setOnClickListener(v -> onClick.run());
         return btn;
     }
+
+    // ---------- 全屏设置 ----------
+
+    private void makeFullScreen() {
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        if (Build.VERSION.SDK_INT >= 28) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
+        if (Build.VERSION.SDK_INT >= 30) {
+            getWindow().setDecorFitsSystemInsets(false);
+            getWindow().getInsetsController().hide(
+                android.view.WindowInsets.Type.statusBars() |
+                android.view.WindowInsets.Type.navigationBars());
+            getWindow().getInsetsController().setSystemBarsBehavior(
+                android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        } else {
+            getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+            getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        }
+    }
+
+    // ---------- 服务控制 ----------
 
     private void toggle() {
         GrabAccessibilityService s = GrabAccessibilityService.getInstance();
         if (s != null && s.isActive()) {
             s.stopGrabLoop();
-            startTime = 0;
         } else {
             if (!isAccEnabled()) {
-                openAccessibilitySettings();
+                try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); } catch (Exception ignored) {}
                 return;
             }
             if (s == null) return;
             s.startGrabLoop();
-            startTime = SystemClock.elapsedRealtime();
         }
-        doUpdateUI();
-    }
-
-    private void pause() {
-        GrabAccessibilityService s = GrabAccessibilityService.getInstance();
-        if (s == null) return;
-        s.setPaused(!s.isPaused());
-        doUpdateUI();
+        updateServiceUI();
     }
 
     private boolean isAccEnabled() {
@@ -233,39 +258,54 @@ public class MainActivity extends Activity {
         } catch (Exception ex) { return false; }
     }
 
-    private void openAccessibilitySettings() {
-        try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); } catch (Exception ignored) {}
-    }
-
-    private void doUpdateUI() {
+    private void updateServiceUI() {
         GrabAccessibilityService s = GrabAccessibilityService.getInstance();
         boolean r = s != null && s.isActive();
-        boolean p = s != null && s.isPaused();
-        btnToggle.setText(r ? "停止服务" : "启动服务");
-        btnToggle.setBackgroundColor(r ? 0xFF333355 : 0xFFE94560);
-        btnPause.setVisibility(r ? View.VISIBLE : View.GONE);
-        if (r) btnPause.setText(p ? "继续" : "暂停");
-        if (r && p) { tvShortStatus.setText("已暂停"); statusDot.setBackgroundColor(0xFFFFA500); }
-        else if (r) { tvShortStatus.setText("运行中"); statusDot.setBackgroundColor(0xFF4CAF50); }
-        else { tvShortStatus.setText("未启动"); statusDot.setBackgroundColor(0xFF888888); }
+        TextView tvStatus = findViewById(android.R.id.content).getRootView().findViewWithTag("status_text");
+        if (tvStatus == null) return;
+
+        if (r) {
+            btnToggle.setText("停止服务");
+            btnToggle.setBackground(btnBg(0xFF33334D, 12));
+            statusIndicator.setBackground(dot(0xFF4CAF50, 8));
+            tvStatus.setText("运行中");
+            tvStatus.setTextColor(0xFF4CAF50);
+        } else {
+            btnToggle.setText("启动服务");
+            btnToggle.setBackground(btnBg(0xFFE94560, 12));
+            statusIndicator.setBackground(dot(0xFF6B6B80, 8));
+            tvStatus.setText("未启动");
+            tvStatus.setTextColor(0xFF6B6B80);
+        }
     }
 
-    private void doRefresh() {
+    private void refreshStats() {
         int g = config.getStatGrabbed(), f = config.getStatFailed(), sk = config.getStatSkipped();
         tvGrabbed.setText(String.valueOf(g));
         tvFailed.setText(String.valueOf(f));
         tvSkipped.setText(String.valueOf(sk));
         tvIncome.setText("¥" + (g * 12));
-        if (startTime > 0) {
-            long e = SystemClock.elapsedRealtime() - startTime;
-            int sec = (int)(e/1000);
-            tvUptime.setText(String.format("%02d:%02d:%02d", sec/3600, (sec/60)%60, sec%60));
-        } else tvUptime.setText("--:--:--");
+        tvGrabbed.setTextColor(0xFF4CAF50);
+        tvFailed.setTextColor(0xFFE94560);
+        tvSkipped.setTextColor(0xFF888888);
+        tvIncome.setTextColor(0xFFFFD700);
     }
 
-    @Override
-    protected void onDestroy() {
-        handler.removeCallbacksAndMessages(null);
-        super.onDestroy();
+    // ---------- 工具 ----------
+
+    private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + 0.5f); }
+
+    private android.graphics.drawable.GradientDrawable dot(int color, int r) {
+        GradientDrawable g = new GradientDrawable(); g.setShape(GradientDrawable.OVAL);
+        g.setColor(color); g.setSize(dp(r), dp(r)); return g;
+    }
+    private android.graphics.drawable.GradientDrawable card(int color) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color); g.setCornerRadius(dp(10));
+        g.setStroke(dp(1), 0x1AFFFFFF); return g;
+    }
+    private android.graphics.drawable.GradientDrawable btnBg(int color, int r) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color); g.setCornerRadius(dp(r)); return g;
     }
 }
