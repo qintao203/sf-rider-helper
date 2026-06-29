@@ -1,0 +1,74 @@
+package com.sf.riderhelper;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
+public class ConfigManager {
+    private static ConfigManager instance;
+    private SharedPreferences sp;
+    private static final String PREFS_NAME = "sf_rider_config";
+
+    private ConfigManager(Context c) {
+        sp = c.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    public static synchronized ConfigManager getInstance(Context c) {
+        if (instance == null) instance = new ConfigManager(c.getApplicationContext());
+        return instance;
+    }
+
+    // --- 金额 ---
+    public float getMinPrice() { return sp.getFloat("min_price", 10); }
+    public void setMinPrice(float v) { sp.edit().putFloat("min_price", v).apply(); }
+    public float getMaxPrice() { return sp.getFloat("max_price", 200); }
+    public void setMaxPrice(float v) { sp.edit().putFloat("max_price", v).apply(); }
+
+    // --- 距离 ---
+    public float getMaxDistance() { return sp.getFloat("max_dist", 5); }
+    public void setMaxDistance(float v) { sp.edit().putFloat("max_dist", v).apply(); }
+
+    // --- 方向 ---
+    public Set<String> getPreferredDirections() {
+        return sp.getStringSet("pref_dirs", new HashSet<>(Arrays.asList("科技园","福田","南山")));
+    }
+    public void setPreferredDirections(String csv) {
+        sp.edit().putStringSet("pref_dirs", new HashSet<>(Arrays.asList(csv.split(",")))).apply();
+    }
+    public Set<String> getExcludedDirections() {
+        return sp.getStringSet("excl_dirs", new HashSet<>(Arrays.asList("龙岗","坪山")));
+    }
+    public void setExcludedDirections(String csv) {
+        sp.edit().putStringSet("excl_dirs", new HashSet<>(Arrays.asList(csv.split(",")))).apply();
+    }
+
+    // --- 行为 ---
+    public int getScanInterval() { return sp.getInt("scan_interval", 2000); }
+    public void setScanInterval(int v) { sp.edit().putInt("scan_interval", v).apply(); }
+    public int getGrabDelay() { return sp.getInt("grab_delay", 100); }
+    public void setGrabDelay(int v) { sp.edit().putInt("grab_delay", v).apply(); }
+    public int getCooldownSeconds() { return sp.getInt("cooldown", 30); }
+    public void setCooldownSeconds(int v) { sp.edit().putInt("cooldown", v).apply(); }
+
+    // --- 提醒 ---
+    public boolean isVibrateOnGrab() { return sp.getBoolean("vibrate", true); }
+    public void setVibrateOnGrab(boolean v) { sp.edit().putBoolean("vibrate", v).apply(); }
+    public boolean isNotifyOnGrab() { return sp.getBoolean("notify", true); }
+    public void setNotifyOnGrab(boolean v) { sp.edit().putBoolean("notify", v).apply(); }
+    public boolean isKeepScreenOn() { return sp.getBoolean("keep_screen", true); }
+    public void setKeepScreenOn(boolean v) { sp.edit().putBoolean("keep_screen", v).apply(); }
+
+    // --- 统计 ---
+    public int getStatGrabbed() { return sp.getInt("stat_grabbed", 0); }
+    public void setStatGrabbed(int v) { sp.edit().putInt("stat_grabbed", v).apply(); }
+    public int getStatFailed() { return sp.getInt("stat_failed", 0); }
+    public void setStatFailed(int v) { sp.edit().putInt("stat_failed", v).apply(); }
+    public int getStatSkipped() { return sp.getInt("stat_skipped", 0); }
+    public void setStatSkipped(int v) { sp.edit().putInt("stat_skipped", v).apply(); }
+    public void resetStats() {
+        sp.edit().putInt("stat_grabbed", 0).putInt("stat_failed", 0)
+                .putInt("stat_skipped", 0).apply();
+    }
+}
