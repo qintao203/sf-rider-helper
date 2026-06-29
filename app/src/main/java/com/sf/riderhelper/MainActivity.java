@@ -385,7 +385,7 @@ public class MainActivity extends Activity {
 
     // ==================== 工具 ====================
 
-    private int dp(int n) { return ThemeEngine.dp(n, btnToggle != null ? btnToggle :
+        private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + 0.5f); }
             findViewById(android.R.id.content)); }
 
     private GradientDrawable diagonalGradient(int[] colors) {

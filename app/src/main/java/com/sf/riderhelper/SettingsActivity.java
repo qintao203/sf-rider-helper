@@ -301,5 +301,5 @@ public class SettingsActivity extends Activity {
     private int pi(EditText et, int d) {
         String s = et.getText().toString().trim(); return s.isEmpty() ? d : Integer.parseInt(s);
     }
-    private int dp(int n) { return ThemeEngine.dp(n, findViewById(android.R.id.content)); }
+        private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + 0.5f); }
 }

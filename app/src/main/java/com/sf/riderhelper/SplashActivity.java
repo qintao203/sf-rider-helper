@@ -198,7 +198,7 @@ public class SplashActivity extends Activity {
                         View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
     }
 
-    private int dp(int n) { return ThemeEngine.dp(n, findViewById(android.R.id.content) != null ?
+        private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + 0.5f); }
             findViewById(android.R.id.content) : new View(this)); }
 
     private GradientDrawable glassCard(int color, int radius, int borderColor) {

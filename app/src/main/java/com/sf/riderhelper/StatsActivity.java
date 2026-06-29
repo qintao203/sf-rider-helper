@@ -234,5 +234,5 @@ public class StatsActivity extends Activity {
         getWindow().setStatusBarColor(ThemeEngine.BG_DARK);
     }
 
-    private int dp(int n) { return ThemeEngine.dp(n, findViewById(android.R.id.content)); }
+        private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + 0.5f); }
 }
