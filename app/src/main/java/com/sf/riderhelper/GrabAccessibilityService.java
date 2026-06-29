@@ -93,7 +93,7 @@ public class GrabAccessibilityService extends AccessibilityService {
         active = false;
         paused = false;
         handler.removeCallbacks(grabLoop);
-        try { stopForegroundService(new Intent(this, GrabForegroundService.class)); } catch (Exception ignored) {}
+        try { stopService(new Intent(this, GrabForegroundService.class)); } catch (Exception ignored) {}
         Log.d(TAG, "Grab loop stopped");
     }
 
