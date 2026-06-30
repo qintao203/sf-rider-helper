@@ -25,9 +25,9 @@ public class MainActivity2 extends Activity {
     private static final String[][] NAV_ITEMS = {
         {"📋", "订单"},
         {"💰", "收入"},
-        {"👤", "我的"},
+        {"🗺", "地图"},
         {"⚡", "抢单"},
-        {"📦", "顺丰"},
+        {"👤", "我的"},
     };
 
     private LinearLayout contentArea;
@@ -128,14 +128,14 @@ public class MainActivity2 extends Activity {
             case 1: // 收入
                 pageView = EarningsFragment.create(this, dataManager);
                 break;
-            case 2: // 我的
-                pageView = ProfileFragment.create(this, dataManager);
+            case 2: // 地图
+                pageView = MapFragment.create(this);
                 break;
-            case 3: // 抢单助手（原有功能入口）
+            case 3: // 抢单助手
                 pageView = createGrabPage();
                 break;
-            case 4: // 顺丰同城
-                pageView = createSFPage();
+            case 4: // 我的
+                pageView = ProfileFragment.create(this, dataManager);
                 break;
         }
 
