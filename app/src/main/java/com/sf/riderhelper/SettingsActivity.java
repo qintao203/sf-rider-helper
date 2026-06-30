@@ -23,8 +23,8 @@ import android.widget.Toast;
 
 public class SettingsActivity extends Activity {
     private ConfigManager config;
-    private EditText etMin, etMax, etDist, etPref, etExcl, etScan, etDelay, etCool, etScore;
-    private CheckBox cbVib, cbNot, cbTts, cbKeep;
+    private EditText etMin, etMax, etDist, etPref, etExcl, etScan, etDelay, etCool, etScore, etDndStart, etDndEnd;
+    private CheckBox cbVib, cbNot, cbTts, cbKeep, cbPower, cbFloat, cbDnd;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -100,6 +100,18 @@ public class SettingsActivity extends Activity {
         cbNot = makeToggleRow(content, "抢单通知", true);
         cbTts = makeToggleRow(content, "语音播报", true);
         cbKeep = makeToggleRow(content, "屏幕常亮", true);
+
+        content.addView(makeSection("🔋 省电与后台"));
+        cbPower = makeToggleRow(content, "省电模式", false);
+        cbFloat = makeToggleRow(content, "悬浮球", false);
+
+        content.addView(makeSection("🌙 勿扰时段"));
+        cbDnd = makeToggleRow(content, "启用勿扰", false);
+        etDndStart = makeSettingRow(content, "开始时间", "23", "时");
+        etDndEnd = makeSettingRow(content, "结束时间", "6", "时");
+
+        content.addView(makeSection("📋 配置场景"));
+        content.addView(makeSceneSelector(content));
 
         // ========== 保存按钮 ==========
         Button save = new Button(this);
@@ -319,6 +331,88 @@ public class SettingsActivity extends Activity {
         config.setStrategyMode(modes[idx]);
     }
 
+    /** 多配置场景选择器 */
+    private String[] scenes = {"默认", "午高峰", "晚高峰", "周末"};
+    private LinearLayout makeSceneSelector(LinearLayout parent) {
+        LinearLayout row = glassRow();
+        row.setPadding(dp(10), dp(6), dp(10), dp(6));
+        row.setOrientation(LinearLayout.VERTICAL);
+
+        // 场景按钮行
+        LinearLayout btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+
+        String current = config.getSceneProfile();
+        for (int i = 0; i < scenes.length; i++) {
+            final String sceneName = scenes[i];
+            boolean active = sceneName.equals(current);
+
+            Button btn = new Button(this);
+            btn.setText(sceneName);
+            btn.setTextSize(11);
+            btn.setTypeface(null, active ? 1 : 0);
+            btn.setTextColor(active ? 0xFF0A0A14 : ThemeEngine.TEXT_SECONDARY);
+            btn.setBackground(ThemeEngine.roundedBg(
+                    active ? ThemeEngine.NEON_CYAN : ThemeEngine.BG_CARD_DARK,
+                    ThemeEngine.RADIUS_SMALL));
+            btn.setLayoutParams(new LinearLayout.LayoutParams(0, dp(32), 1));
+            ((LinearLayout.LayoutParams)btn.getLayoutParams()).setMargins(dp(2), 0, dp(2), 0);
+
+            btn.setOnClickListener(v -> {
+                loadScene(sceneName);
+                // 刷新所有btn高亮
+                for (int j = 0; j < btnRow.getChildCount(); j++) {
+                    View b = btnRow.getChildAt(j);
+                    if (b instanceof Button) {
+                        boolean a = ((Button) b).getText().toString().equals(sceneName);
+                        ((Button) b).setTextColor(a ? 0xFF0A0A14 : ThemeEngine.TEXT_SECONDARY);
+                        ((Button) b).setTypeface(null, a ? 1 : 0);
+                        b.setBackground(ThemeEngine.roundedBg(
+                                a ? ThemeEngine.NEON_CYAN : ThemeEngine.BG_CARD_DARK,
+                                ThemeEngine.RADIUS_SMALL));
+                    }
+                }
+            });
+
+            btnRow.addView(btn);
+        }
+        row.addView(btnRow);
+
+        // 场景说明
+        TextView hint = new TextView(this);
+        hint.setText("点击切换配置场景（含金额/距离/方向/策略）");
+        hint.setTextColor(ThemeEngine.TEXT_MUTED);
+        hint.setTextSize(9);
+        hint.setPadding(dp(4), dp(6), 0, 0);
+        row.addView(hint);
+
+        return row;
+    }
+
+    private void loadScene(String scene) {
+        config.setSceneProfile(scene);
+        switch (scene) {
+            case "午高峰":
+                config.setMinPrice(15); config.setMaxPrice(50);
+                config.setMaxDistance(3); config.setStrategyMode("高优");
+                break;
+            case "晚高峰":
+                config.setMinPrice(18); config.setMaxPrice(60);
+                config.setMaxDistance(4); config.setStrategyMode("高优");
+                break;
+            case "周末":
+                config.setMinPrice(12); config.setMaxPrice(30);
+                config.setMaxDistance(5); config.setStrategyMode("保底");
+                break;
+            default: // 默认
+                config.setMinPrice(10); config.setMaxPrice(200);
+                config.setMaxDistance(5); config.setStrategyMode("中优");
+                break;
+        }
+        loadValues();
+        Toast.makeText(this, "已切换: " + scene + "模式", Toast.LENGTH_SHORT).show();
+    }
+
     private GradientDrawable toggleBg(boolean on) {
         return ThemeEngine.roundedBg(on ? 0xFF00E5FF : 0xFF33334D, dp(14));
     }
@@ -351,6 +445,11 @@ public class SettingsActivity extends Activity {
         cbNot.setChecked(config.isNotifyOnGrab());
         cbTts.setChecked(config.isTtsEnabled());
         cbKeep.setChecked(config.isKeepScreenOn());
+        cbPower.setChecked(config.isPowerSaving());
+        cbFloat.setChecked(config.isFloatingBall());
+        cbDnd.setChecked(config.isDndEnabled());
+        etDndStart.setText(String.valueOf(config.getDndStartHour()));
+        etDndEnd.setText(String.valueOf(config.getDndEndHour()));
     }
 
     private void doSave() {
@@ -367,6 +466,11 @@ public class SettingsActivity extends Activity {
             config.setNotifyOnGrab(cbNot.isChecked());
             config.setTtsEnabled(cbTts.isChecked());
             config.setKeepScreenOn(cbKeep.isChecked());
+            config.setPowerSaving(cbPower.isChecked());
+            config.setFloatingBall(cbFloat.isChecked());
+            config.setDndEnabled(cbDnd.isChecked());
+            config.setDndStartHour(pi(etDndStart, 23));
+            config.setDndEndHour(pi(etDndEnd, 6));
             config.setMinScore(pi(etScore, 20));
             Toast.makeText(this, "✓ 已保存", Toast.LENGTH_SHORT).show();
         } catch (Exception e) { Toast.makeText(this, "✗ 保存失败", Toast.LENGTH_SHORT).show(); }

@@ -45,5 +45,10 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <service
+            android:name=".GuardService"
+            android:exported="false"
+            android:enabled="true" />
+
     </application>
 </manifest>

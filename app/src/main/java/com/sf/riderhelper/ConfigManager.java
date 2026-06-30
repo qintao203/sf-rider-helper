@@ -62,6 +62,26 @@ public class ConfigManager {
     public boolean isTtsEnabled() { return sp.getBoolean("tts", true); }
     public void setTtsEnabled(boolean v) { sp.edit().putBoolean("tts", v).apply(); }
 
+    // --- 省电 ---
+    public boolean isPowerSaving() { return sp.getBoolean("power_saving", false); }
+    public void setPowerSaving(boolean v) { sp.edit().putBoolean("power_saving", v).apply(); }
+
+    // --- 勿扰时段 ---
+    public boolean isDndEnabled() { return sp.getBoolean("dnd_enabled", false); }
+    public void setDndEnabled(boolean v) { sp.edit().putBoolean("dnd_enabled", v).apply(); }
+    public int getDndStartHour() { return sp.getInt("dnd_start_hour", 23); }
+    public void setDndStartHour(int v) { sp.edit().putInt("dnd_start_hour", v).apply(); }
+    public int getDndEndHour() { return sp.getInt("dnd_end_hour", 6); }
+    public void setDndEndHour(int v) { sp.edit().putInt("dnd_end_hour", v).apply(); }
+
+    // --- 悬浮球 ---
+    public boolean isFloatingBall() { return sp.getBoolean("float_ball", false); }
+    public void setFloatingBall(boolean v) { sp.edit().putBoolean("float_ball", v).apply(); }
+
+    // --- 多配置场景 ---
+    public String getSceneProfile() { return sp.getString("scene_profile", "默认"); }
+    public void setSceneProfile(String v) { sp.edit().putString("scene_profile", v).apply(); }
+
     // --- 策略 ---
     public String getStrategyMode() { return sp.getString("strategy_mode", "中优"); }
     public void setStrategyMode(String v) { sp.edit().putString("strategy_mode", v).apply(); }

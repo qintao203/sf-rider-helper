@@ -110,6 +110,11 @@ public class MainActivity extends Activity {
         tvFilterValue.setTag("filter_value");
         strategyBar.addView(tvFilterValue);
 
+        // 省电/勿扰/悬浮球状态图标
+        if (config.isPowerSaving()) addStatusTag(strategyBar, "省电", ThemeEngine.NEON_GREEN);
+        if (config.isDndEnabled()) addStatusTag(strategyBar, "勿扰", ThemeEngine.NEON_ORANGE);
+        if (config.isFloatingBall()) addStatusTag(strategyBar, "悬浮", ThemeEngine.NEON_PURPLE);
+
         root.addView(strategyBar);
 
         // ========== 中间大时钟 ==========
@@ -432,7 +437,20 @@ public class MainActivity extends Activity {
         tvIncome.setText("¥" + (g * 12));
     }
 
-    // ==================== 全屏 ====================
+    /** 添加状态标签 */
+    private void addStatusTag(LinearLayout parent, String text, int color) {
+        View dot = new View(this);
+        dot.setBackground(ThemeEngine.dot(color, 5, dot));
+        dot.setLayoutParams(new LinearLayout.LayoutParams(dp(5), dp(5)));
+        ((LinearLayout.LayoutParams)dot.getLayoutParams()).setMargins(dp(8), 0, dp(3), 0);
+        parent.addView(dot);
+
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(color);
+        tv.setTextSize(9);
+        parent.addView(tv);
+    }
 
     private void makeFullScreen() {
         requestWindowFeature(Window.FEATURE_NO_TITLE);

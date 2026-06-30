@@ -92,6 +92,19 @@ public class GrabAccessibilityService extends AccessibilityService {
                     Log.e(TAG, "Grab cycle error", e);
                 }
                 int interval = Math.max(800, config.getScanInterval() + rng.nextInt(800));
+
+                // 省电模式：低电量时降低扫描频率
+                if (config.isPowerSaving()) {
+                    interval = Math.max(3000, interval * 2);
+                }
+
+                // 勿扰时段检查
+                if (config.isDndEnabled() && isInDndPeriod()) {
+                    paused = true;
+                    handler.postDelayed(() -> { paused = false; }, 60000);
+                    return;
+                }
+
                 handler.postDelayed(this, interval);
             }
         };
@@ -101,6 +114,19 @@ public class GrabAccessibilityService extends AccessibilityService {
             startForegroundService(new Intent(this, GrabForegroundService.class));
         } catch (Exception e) {
             Log.e(TAG, "Foreground start failed", e);
+        }
+
+        // 启动守护进程
+        try {
+            startService(new Intent(this, GuardService.class));
+        } catch (Exception ignored) {}
+
+        // 启动悬浮球（如果启用）
+        if (config.isFloatingBall()) {
+            try {
+                FloatingWindowManager fwm = new FloatingWindowManager(this);
+                fwm.show();
+            } catch (Exception ignored) {}
         }
     }
 
@@ -215,5 +241,15 @@ public class GrabAccessibilityService extends AccessibilityService {
             long[] pattern = {0, 100, 50, 100}; // 双震
             v.vibrate(pattern, -1);
         }
+    }
+
+    /** 检查当前是否在勿扰时段内 */
+    private boolean isInDndPeriod() {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        int now = c.get(java.util.Calendar.HOUR_OF_DAY);
+        int start = config.getDndStartHour();
+        int end = config.getDndEndHour();
+        if (start <= end) return now >= start && now < end;
+        return now >= start || now < end; // 跨天（如 23:00-06:00）
     }
 }
