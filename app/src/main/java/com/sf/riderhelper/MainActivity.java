@@ -206,15 +206,55 @@ public class MainActivity extends Activity {
 
         root.addView(funcRow);
 
-        // ========== 顺丰同城集成 ==========
+        // ========== 顺丰同城 闭环联动 ==========
         LinearLayout sfSection = new LinearLayout(this);
-        sfSection.setOrientation(LinearLayout.HORIZONTAL);
-        sfSection.setGravity(Gravity.CENTER);
+        sfSection.setOrientation(LinearLayout.VERTICAL);
         sfSection.setPadding(dp(16), dp(10), dp(16), 0);
         sfSection.setAlpha(0f);
 
+        // 标题行
+        LinearLayout sfTitleRow = new LinearLayout(this);
+        sfTitleRow.setOrientation(LinearLayout.HORIZONTAL);
+        sfTitleRow.setGravity(Gravity.CENTER_VERTICAL);
+        sfTitleRow.setPadding(dp(4), 0, dp(4), dp(6));
+
+        View sfDot = new View(this);
+        sfDot.setBackground(ThemeEngine.dot(ThemeEngine.NEON_CYAN, 5, sfDot));
+        sfDot.setLayoutParams(new LinearLayout.LayoutParams(dp(5), dp(5)));
+        ((LinearLayout.LayoutParams)sfDot.getLayoutParams()).setMargins(0, 0, dp(6), 0);
+        sfTitleRow.addView(sfDot);
+
+        TextView sfTitle = new TextView(this);
+        boolean sfInstalled = SFRiderBridge.isInstalled(this);
+        sfTitle.setText("顺丰同城骑士" + (sfInstalled ? " ✓ 已安装" : ""));
+        sfTitle.setTextColor(sfInstalled ? ThemeEngine.NEON_CYAN : ThemeEngine.TEXT_DISABLED);
+        sfTitle.setTextSize(12);
+        sfTitle.setTypeface(null, 1);
+        sfTitleRow.addView(sfTitle);
+
+        if (sfInstalled) {
+            View dot2 = new View(this);
+            dot2.setBackground(ThemeEngine.dot(ThemeEngine.NEON_GREEN, 4, dot2));
+            dot2.setLayoutParams(new LinearLayout.LayoutParams(dp(4), dp(4)));
+            ((LinearLayout.LayoutParams)dot2.getLayoutParams()).setMargins(dp(6), 0, dp(4), 0);
+            sfTitleRow.addView(dot2);
+
+            TextView sfStatus = new TextView(this);
+            sfStatus.setText("在线");
+            sfStatus.setTextColor(ThemeEngine.NEON_GREEN);
+            sfStatus.setTextSize(10);
+            sfTitleRow.addView(sfStatus);
+        }
+
+        sfSection.addView(sfTitleRow);
+
+        // 按钮行
+        LinearLayout sfBtnRow = new LinearLayout(this);
+        sfBtnRow.setOrientation(LinearLayout.HORIZONTAL);
+
+        // 主按钮：打开顺丰同城
         Button sfLaunch = new Button(this);
-        sfLaunch.setText("📦 打开顺丰同城");
+        sfLaunch.setText("📦 " + (sfInstalled ? "打开顺丰同城" : "安装顺丰同城"));
         sfLaunch.setTextColor(0xFF0A0A14);
         sfLaunch.setTextSize(13);
         sfLaunch.setTypeface(null, 1);
@@ -232,30 +272,30 @@ public class MainActivity extends Activity {
         });
         sfLaunch.setOnClickListener(v -> {
             if (!SFRiderBridge.launchSFApp(this)) {
-                // 未安装 → 跳到应用商店
                 SFRiderBridge.openMarket(this);
             }
         });
-        sfSection.addView(sfLaunch);
+        sfBtnRow.addView(sfLaunch);
 
-        // 分屏提示按钮
-        Button sfSplit = new Button(this);
-        sfSplit.setText("⊞ 分屏");
-        sfSplit.setTextColor(ThemeEngine.TEXT_SECONDARY);
-        sfSplit.setTextSize(12);
-        sfSplit.setBackground(ThemeEngine.glassCard(
+        // 同屏模式按钮
+        Button sfCoop = new Button(this);
+        sfCoop.setText("⟷ 同屏");
+        sfCoop.setTextColor(ThemeEngine.TEXT_SECONDARY);
+        sfCoop.setTextSize(12);
+        sfCoop.setBackground(ThemeEngine.glassCard(
                 ThemeEngine.BG_CARD, ThemeEngine.RADIUS_LARGE, ThemeEngine.BORDER_CARD));
-        sfSplit.setLayoutParams(new LinearLayout.LayoutParams(0, dp(40), 1));
-        ((LinearLayout.LayoutParams)sfSplit.getLayoutParams()).setMargins(dp(8), 0, 0, 0);
-        sfSplit.setOnClickListener(v -> {
-            if (!SFRiderBridge.launchSFApp(this)) {
-                SFRiderBridge.openMarket(this);
+        sfCoop.setLayoutParams(new LinearLayout.LayoutParams(0, dp(40), 1));
+        ((LinearLayout.LayoutParams)sfCoop.getLayoutParams()).setMargins(dp(8), 0, 0, 0);
+        sfCoop.setOnClickListener(v -> {
+            if (SFRiderBridge.launchSFApp(this)) {
+                android.widget.Toast.makeText(this,
+                        "提示: 从底部上滑进入分屏\n抢单助手+顺丰同城 同屏协作",
+                        android.widget.Toast.LENGTH_LONG).show();
             }
-            // 提示用户手动开启分屏
-            android.widget.Toast.makeText(this, "已打开顺丰同城，请从底部上滑进入分屏模式",
-                    android.widget.Toast.LENGTH_LONG).show();
         });
-        sfSection.addView(sfSplit);
+        sfBtnRow.addView(sfCoop);
+
+        sfSection.addView(sfBtnRow);
 
         root.addView(sfSection);
 

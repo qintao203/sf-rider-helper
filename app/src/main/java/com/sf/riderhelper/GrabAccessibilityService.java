@@ -22,6 +22,7 @@ public class GrabAccessibilityService extends AccessibilityService {
     private GrabStrategy strategy;
     private TextSpeaker textSpeaker;
     private OrderDatabase orderDb;
+    private FloatingWindowManager floatWin;
     private Runnable grabLoop;
     private long lastGrabTime = 0;
     private int consecutiveFails = 0;
@@ -50,7 +51,8 @@ public class GrabAccessibilityService extends AccessibilityService {
         textSpeaker = new TextSpeaker(this);
         textSpeaker.init();
         orderDb = OrderDatabase.getInstance(this);
-        Log.d(TAG, "GrabAccessibilityService created with smart engine + DB + TTS");
+        floatWin = new FloatingWindowManager(this);
+        Log.d(TAG, "GrabAccessibilityService created with smart engine + DB + TTS + float");
     }
 
     @Override
@@ -122,11 +124,10 @@ public class GrabAccessibilityService extends AccessibilityService {
             startService(new Intent(this, GuardService.class));
         } catch (Exception ignored) {}
 
-        // 启动悬浮球（如果启用）
+        // 启动悬浮球（闭环联动悬浮窗）
         if (config.isFloatingBall()) {
             try {
-                FloatingWindowManager fwm = new FloatingWindowManager(this);
-                fwm.show();
+                floatWin.show();
             } catch (Exception ignored) {}
         }
     }
@@ -237,6 +238,16 @@ public class GrabAccessibilityService extends AccessibilityService {
         int coolMs = strategy.getCooldown(tier);
         paused = true;
         handler.postDelayed(() -> { paused = false; }, coolMs);
+
+        // 更新悬浮窗
+        if (floatWin != null && floatWin.isShowing()) {
+            int g = config.getStatGrabbed();
+            int f = config.getStatFailed();
+            float income = g * 12;
+            floatWin.updateStatus(tier.label + " 已抢", 0xFF4CAF50);
+            floatWin.updateOrderInfo(order.toString() + " " + result.reason);
+            floatWin.updateStats(g, f, income);
+        }
     }
 
     private AccessibilityNodeInfo findGrabButton() {
