@@ -131,6 +131,7 @@ public class SplashActivity extends Activity {
             int idx = 0;
             @Override
             public void run() {
+                if (loading.getWindowToken() == null || isFinishing()) return;
                 idx = (idx + 1) % msgs.length;
                 loading.setText(msgs[idx]);
                 loading.postDelayed(this, 400);
@@ -163,10 +164,14 @@ public class SplashActivity extends Activity {
         sub.animate().alpha(1f).setDuration(400).setStartDelay(700).start();
 
         // ========== 跳转主页面 ==========
-        new Handler(getMainLooper()).postDelayed(() -> {
-            startActivity(new Intent(this, MainActivity.class));
-            finish();
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        new Handler(getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing()) return;
+                startActivity(new Intent(SplashActivity.this, MainActivity.class));
+                finish();
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            }
         }, 2500);
     }
 
@@ -175,7 +180,7 @@ public class SplashActivity extends Activity {
             boolean up = true;
             @Override
             public void run() {
-                if (dot.getWindowToken() == null) return;
+                if (dot.getWindowToken() == null) return; // 窗口销毁则停止
                 float s = up ? 1.8f : 0.6f;
                 dot.animate().scaleX(s).scaleY(s).setDuration(400).start();
                 up = !up;
