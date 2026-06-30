@@ -56,7 +56,10 @@ public class ScreenInteractor {
     // 查找并点击文本
     public boolean clickByText(String text) {
         AccessibilityNodeInfo n = findNodeByText(text);
-        return n != null && (n.performAction(AccessibilityNodeInfo.ACTION_CLICK) || true);
+        if (n == null) return false;
+        boolean clicked = n.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+        n.recycle();
+        return clicked;
     }
 
     // 获取页面文本内容（用于识别订单）

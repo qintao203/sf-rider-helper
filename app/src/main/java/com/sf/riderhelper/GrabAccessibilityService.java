@@ -171,61 +171,72 @@ public class GrabAccessibilityService extends AccessibilityService {
             return;
         }
 
-        // 5. 查找抢单按钮并点击
+        // 5. 查找抢单按钮
         AccessibilityNodeInfo grabBtn = findGrabButton();
+
         if (grabBtn == null) {
             consecutiveFails++;
             return;
         }
 
-        // 6. 按策略延迟
-        int delay = strategy.getDelay(tier);
-        try { Thread.sleep(delay); } catch (InterruptedException ignored) {}
+        // 6. 获取策略延迟后，通过Handler延迟执行点击（避免Thread.sleep阻塞主线程）
+        final int delayMs = strategy.getDelay(tier);
+        final AccessibilityNodeInfo btnToClick = grabBtn;
+        final GrabStrategy.Tier finalTier = tier;
+        final GrabFilterEngine.FilterResult finalResult = result;
+        final OrderParser.ParsedOrder finalOrder = order;
 
-        // 7. 执行抢单
-        boolean ok = interactor.clickNode(grabBtn);
-        if (grabBtn != null) grabBtn.recycle();
+        handler.postDelayed(() -> {
+            // 7. 执行抢单
+            boolean ok = interactor.clickNode(btnToClick);
+            if (btnToClick != null) btnToClick.recycle();
 
-        if (ok) {
-            strategy.onGrab(tier);
-            lastGrabTime = System.currentTimeMillis();
-            int grabbed = config.getStatGrabbed() + 1;
-            config.setStatGrabbed(grabbed);
-            consecutiveFails = 0;
-
-            String msg = result.getStrategyName() + "抢单: " + order;
-            Log.d(TAG, msg);
-
-            // 震动
-            if (config.isVibrateOnGrab()) {
-                try { vibrate(); } catch (Exception ignored) {}
+            if (ok) {
+                onGrabSuccess(finalTier, finalResult, finalOrder);
+            } else {
+                config.setStatFailed(config.getStatFailed() + 1);
+                consecutiveFails++;
             }
+        }, delayMs);
+    }
 
-            // 通知
-            if (config.isNotifyOnGrab()) {
-                notifHelper.notifyGrab(
-                    "抢单成功 " + result.getStrategyName(),
-                    order.toString() + " | " + result.reason);
-            }
+    private void onGrabSuccess(GrabStrategy.Tier tier,
+                                GrabFilterEngine.FilterResult result,
+                                OrderParser.ParsedOrder order) {
+        strategy.onGrab(tier);
+        lastGrabTime = System.currentTimeMillis();
+        int grabbed = config.getStatGrabbed() + 1;
+        config.setStatGrabbed(grabbed);
+        consecutiveFails = 0;
 
-            // 语音播报
-            textSpeaker.setEnabled(config.isTtsEnabled());
-            textSpeaker.speakGrab(order.price, order.direction, order.distance, result.getStrategyName());
+        String msg = result.getStrategyName() + "抢单: " + order;
+        Log.d(TAG, msg);
 
-            // 保存到数据库
-            orderDb.insertOrder(lastGrabTime, order.price, order.distance,
-                    order.direction, order.storeName, "success",
-                    result.getStrategyName(), result.score, result.reason);
-
-            // 按策略冷却
-            int coolMs = strategy.getCooldown(tier);
-            paused = true;
-            handler.postDelayed(() -> { paused = false; }, coolMs);
-
-        } else {
-            config.setStatFailed(config.getStatFailed() + 1);
-            consecutiveFails++;
+        // 震动
+        if (config.isVibrateOnGrab()) {
+            try { vibrate(); } catch (Exception ignored) {}
         }
+
+        // 通知
+        if (config.isNotifyOnGrab()) {
+            notifHelper.notifyGrab(
+                "抢单成功 " + result.getStrategyName(),
+                order.toString() + " | " + result.reason);
+        }
+
+        // 语音播报
+        textSpeaker.setEnabled(config.isTtsEnabled());
+        textSpeaker.speakGrab(order.price, order.direction, order.distance, result.getStrategyName());
+
+        // 保存到数据库
+        orderDb.insertOrder(lastGrabTime, order.price, order.distance,
+                order.direction, order.storeName, "success",
+                result.getStrategyName(), result.score, result.reason);
+
+        // 按策略冷却
+        int coolMs = strategy.getCooldown(tier);
+        paused = true;
+        handler.postDelayed(() -> { paused = false; }, coolMs);
     }
 
     private AccessibilityNodeInfo findGrabButton() {
