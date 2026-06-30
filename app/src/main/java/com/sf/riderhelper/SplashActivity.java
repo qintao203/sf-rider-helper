@@ -168,7 +168,7 @@ public class SplashActivity extends Activity {
             @Override
             public void run() {
                 if (isFinishing()) return;
-                startActivity(new Intent(SplashActivity.this, MainActivity.class));
+                startActivity(new Intent(SplashActivity.this, MainActivity2.class));
                 finish();
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             }
