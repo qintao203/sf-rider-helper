@@ -2,6 +2,7 @@ package com.sf.riderhelper;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -771,10 +772,8 @@ public class MainActivity2 extends Activity {
         return t;
     }
 
-    private LinearLayout gcard() {
-        LinearLayout c = new LinearLayout(this);
-        c.setBackground(ThemeEngine.glassCard(ThemeEngine.BG_CARD, ThemeEngine.RADIUS_SMALL, ThemeEngine.BORDER_CARD));
-        return c;
+    private GradientDrawable gcard() {
+        return ThemeEngine.glassCard(ThemeEngine.BG_CARD, ThemeEngine.RADIUS_SMALL, ThemeEngine.BORDER_CARD);
     }
 
     private TextView lbl(String text) {
