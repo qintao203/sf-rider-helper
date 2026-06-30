@@ -60,7 +60,7 @@ public class MainActivity2 extends Activity {
         contentArea.setLayoutParams(new LinearLayout.LayoutParams(-1, 0, 1));
         root.addView(contentArea);
 
-        root.addView(createNavBar());
+        root.addView(navBar = createNavBar());
         setContentView(root);
         switchPage(2);
 
