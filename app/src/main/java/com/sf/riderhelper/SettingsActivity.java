@@ -421,14 +421,18 @@ public class SettingsActivity extends Activity {
 
     private void makeFullScreen() {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        if (Build.VERSION.SDK_INT >= 28) {
-            getWindow().getAttributes().layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-        }
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
-        getWindow().setNavigationBarColor(ThemeEngine.BG_DARK);
-        getWindow().setStatusBarColor(ThemeEngine.BG_DARK);
+        try {
+            if (Build.VERSION.SDK_INT >= 28) {
+                getWindow().getAttributes().layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            }
+            getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+        } catch (Exception ignored) {}
+        try {
+            getWindow().setNavigationBarColor(ThemeEngine.BG_DARK);
+            getWindow().setStatusBarColor(ThemeEngine.BG_DARK);
+        } catch (Exception ignored) {}
     }
 
     private void loadValues() {
