@@ -58,6 +58,7 @@ public class GrabAccessibilityService extends AccessibilityService {
         instance = null;
         active = false;
         handler.removeCallbacksAndMessages(null);
+        if (textSpeaker != null) textSpeaker.shutdown();
         super.onDestroy();
     }
 

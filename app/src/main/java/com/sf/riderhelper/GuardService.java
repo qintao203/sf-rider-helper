@@ -6,12 +6,15 @@ import android.os.IBinder;
 import android.util.Log;
 
 /**
- * 守护进程：与GrabForegroundService互相监控
+ * 守护进程：与GrabAccessibilityService互相监控
  * 对方被杀时自动拉起
+ * 线程安全：使用标志位防止重复启动
  */
 public class GuardService extends Service {
     private static final String TAG = "GuardService";
     private static GuardService instance;
+    private Thread monitorThread;
+    private volatile boolean running = false;
 
     @Override
     public void onCreate() {
@@ -22,21 +25,24 @@ public class GuardService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // 定时检查主服务是否存活
-        monitorThread.start();
+        if (!running) {
+            running = true;
+            monitorThread = new Thread(this::monitorLoop);
+            monitorThread.setDaemon(true);
+            monitorThread.start();
+        }
         return START_STICKY;
     }
 
-    private Thread monitorThread = new Thread(() -> {
+    private void monitorLoop() {
         int failCount = 0;
-        while (true) {
+        while (running) {
             try { Thread.sleep(10000); } catch (InterruptedException e) { break; }
 
             GrabAccessibilityService grabService = GrabAccessibilityService.getInstance();
             if (grabService == null || !grabService.isActive()) {
                 failCount++;
                 if (failCount >= 3) {
-                    // 尝试重启服务
                     Log.w(TAG, "Main service seems dead, restarting...");
                     try {
                         startService(new Intent(this, GrabForegroundService.class));
@@ -47,7 +53,7 @@ public class GuardService extends Service {
                 failCount = 0;
             }
         }
-    });
+    }
 
     @Override
     public IBinder onBind(Intent intent) { return null; }
@@ -55,6 +61,8 @@ public class GuardService extends Service {
     @Override
     public void onDestroy() {
         instance = null;
+        running = false;
+        if (monitorThread != null) monitorThread.interrupt();
         // 如果被系统杀死，尝试重启
         try {
             startService(new Intent(this, GuardService.class));

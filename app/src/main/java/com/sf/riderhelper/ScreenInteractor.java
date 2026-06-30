@@ -93,9 +93,14 @@ public class ScreenInteractor {
         if (t != null && t.toString().contains(keyword)) return node;
         for (int i = 0; i < node.getChildCount(); i++) {
             AccessibilityNodeInfo child = node.getChild(i);
-            AccessibilityNodeInfo found = findInSubtree(child, keyword);
-            if (found != null) return found;
-            if (child != null) child.recycle();
+            if (child != null) {
+                AccessibilityNodeInfo found = findInSubtree(child, keyword);
+                if (found != null) {
+                    child.recycle();
+                    return found;
+                }
+                child.recycle();
+            }
         }
         return null;
     }

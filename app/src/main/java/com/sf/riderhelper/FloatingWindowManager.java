@@ -80,24 +80,22 @@ public class FloatingWindowManager {
             tvOrder.setPadding(0, 2, 0, 0);
             layout.addView(tvOrder);
 
-            // 触摸拖动
+            // 触摸拖动（防null检查）
             layout.setOnTouchListener((v, event) -> {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         touchX = event.getRawX();
                         touchY = event.getRawY();
-                        initialX = floatView != null ?
-                                ((WindowManager.LayoutParams) floatView.getLayoutParams()).x : 0;
-                        initialY = floatView != null ?
-                                ((WindowManager.LayoutParams) floatView.getLayoutParams()).y : 0;
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         if (floatView != null) {
-                            WindowManager.LayoutParams p =
-                                    (WindowManager.LayoutParams) floatView.getLayoutParams();
-                            p.x = (int)(initialX + (event.getRawX() - touchX));
-                            p.y = (int)(initialY + (event.getRawY() - touchY));
-                            wm.updateViewLayout(floatView, p);
+                            try {
+                                WindowManager.LayoutParams p =
+                                        (WindowManager.LayoutParams) floatView.getLayoutParams();
+                                p.x = (int)((event.getRawX() - touchX));
+                                p.y = (int)((event.getRawY() - touchY));
+                                wm.updateViewLayout(floatView, p);
+                            } catch (Exception ignored) {}
                         }
                         return true;
                 }
