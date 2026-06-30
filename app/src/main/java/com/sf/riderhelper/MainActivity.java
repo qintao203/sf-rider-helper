@@ -206,6 +206,59 @@ public class MainActivity extends Activity {
 
         root.addView(funcRow);
 
+        // ========== 顺丰同城集成 ==========
+        LinearLayout sfSection = new LinearLayout(this);
+        sfSection.setOrientation(LinearLayout.HORIZONTAL);
+        sfSection.setGravity(Gravity.CENTER);
+        sfSection.setPadding(dp(16), dp(10), dp(16), 0);
+        sfSection.setAlpha(0f);
+
+        Button sfLaunch = new Button(this);
+        sfLaunch.setText("📦 打开顺丰同城");
+        sfLaunch.setTextColor(0xFF0A0A14);
+        sfLaunch.setTextSize(13);
+        sfLaunch.setTypeface(null, 1);
+        sfLaunch.setBackground(ThemeEngine.diagonalGradient(
+                new int[]{0xFF00E5FF, 0xFF00B8D4}, ThemeEngine.RADIUS_LARGE));
+        sfLaunch.setLayoutParams(new LinearLayout.LayoutParams(0, dp(40), 1));
+        sfLaunch.setElevation(dp(2));
+        sfLaunch.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN)
+                v.animate().scaleX(0.97f).scaleY(0.97f).setDuration(80).start();
+            else if (event.getAction() == MotionEvent.ACTION_UP ||
+                     event.getAction() == MotionEvent.ACTION_CANCEL)
+                v.animate().scaleX(1f).scaleY(1f).setDuration(150).start();
+            return false;
+        });
+        sfLaunch.setOnClickListener(v -> {
+            if (!SFRiderBridge.launchSFApp(this)) {
+                // 未安装 → 跳到应用商店
+                SFRiderBridge.openMarket(this);
+            }
+        });
+        sfSection.addView(sfLaunch);
+
+        // 分屏提示按钮
+        Button sfSplit = new Button(this);
+        sfSplit.setText("⊞ 分屏");
+        sfSplit.setTextColor(ThemeEngine.TEXT_SECONDARY);
+        sfSplit.setTextSize(12);
+        sfSplit.setBackground(ThemeEngine.glassCard(
+                ThemeEngine.BG_CARD, ThemeEngine.RADIUS_LARGE, ThemeEngine.BORDER_CARD));
+        sfSplit.setLayoutParams(new LinearLayout.LayoutParams(0, dp(40), 1));
+        ((LinearLayout.LayoutParams)sfSplit.getLayoutParams()).setMargins(dp(8), 0, 0, 0);
+        sfSplit.setOnClickListener(v -> {
+            if (!SFRiderBridge.launchSFApp(this)) {
+                SFRiderBridge.openMarket(this);
+            }
+            // 提示用户手动开启分屏
+            android.widget.Toast.makeText(this, "已打开顺丰同城，请从底部上滑进入分屏模式",
+                    android.widget.Toast.LENGTH_LONG).show();
+        });
+        sfSection.addView(sfSplit);
+
+        root.addView(sfSection);
+
         // ========== 版本号 ==========
         TextView tvVer = new TextView(this);
         tvVer.setText("顺丰抢单助手 v6.0 · 霓虹版");
@@ -223,7 +276,8 @@ public class MainActivity extends Activity {
         uptimeLabel.animate().alpha(1f).setDuration(400).setStartDelay(400).start();
         statRow.animate().alpha(1f).setDuration(400).setStartDelay(550).start();
         funcRow.animate().alpha(1f).setDuration(400).setStartDelay(700).start();
-        tvVer.animate().alpha(1f).setDuration(400).setStartDelay(850).start();
+        sfSection.animate().alpha(1f).setDuration(400).setStartDelay(800).start();
+        tvVer.animate().alpha(1f).setDuration(400).setStartDelay(950).start();
 
         refreshStats();
         updateServiceUI();
